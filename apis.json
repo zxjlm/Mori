@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Mori post api",
+    "url": "http://mori.harumonia.moe/post",
+    "data": {
+      "classname": "7",
+      "stunent": "elo",
+      "sex": "M"
+    },
+    "regex": "student",
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  }
+]
