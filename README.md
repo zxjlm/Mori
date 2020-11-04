@@ -4,7 +4,7 @@ Mori 是一个用来检测 api 各种属性的脚本。
 
 名字取自 _Mori Kokoro_ , 也就是 _毛利小五郎_ , 迷迷糊糊中完成的一个脚本。
 
-![result](./assert/mori.png)
+![mori.PNG](https://i.loli.net/2020/11/04/2rd9oFCMbUG7lLj.png)
 
 ## 主要功能
 
