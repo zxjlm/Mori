@@ -44,6 +44,13 @@ optional arguments:
                         results.
 ```
 
+```shell
+# 基础使用
+python mori.py
+```
+
+
+
 ## 关于 apis.json 文件
 
 所有的待搜索 api 都放在一个 json 文件中。
