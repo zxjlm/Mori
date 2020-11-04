@@ -130,3 +130,5 @@ dmypy.json
 
 
 apis_ext.json
+*.csv
+demo.py

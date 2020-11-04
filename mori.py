@@ -1,21 +1,17 @@
 import requests
 import json
 import re
-from loguru import logger
 from requests_futures.sessions import FuturesSession
 import time
-from rich.console import Console, ConsoleOptions, RenderResult
-from rich.segment import Segment
-from rich.style import Style
+from rich.console import Console
 import platform
 from argparse import ArgumentParser, RawDescriptionHelpFormatter
-from dataclasses import dataclass
 from art import tprint
+from printer import SimpleResult, ResultPrinter
+import csv
 
-__version__ = 'v0.1'
+__version__ = 'v0.2'
 module_name = "Mori Kokoro"
-
-console = Console()
 
 
 class MoriFuturesSession(FuturesSession):
@@ -32,27 +28,6 @@ class MoriFuturesSession(FuturesSession):
                                                        url,
                                                        hooks=hooks,
                                                        *args, **kwargs)
-
-
-@dataclass
-class SimpleResult:
-    name: str
-    url: str
-    result: str
-    error_text: str
-    time: str
-
-    def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
-        yield Segment(self.name, Style(color="magenta"))
-        yield Segment(':    ')
-        yield Segment(self.url, Style(color="green"))
-        yield Segment(' ,   ')
-        yield Segment(self.result, Style(color="cyan"))
-        yield Segment(' ,   ')
-        yield Segment(self.time, Style(color="blue"))
-        yield Segment('\n')
-        if self.error_text:
-            yield Segment(f'\t\t error: {self.error_text}\n', Style(color="red"))
 
 
 def regex_checker(regex, resp_json, exception=None):
@@ -91,9 +66,6 @@ def data_render(apis):
 
 
 def get_response(request_future, social_network):
-    """
-    外装response处理器
-    """
     response = None
 
     error_context = "General Unknown Error"
@@ -121,7 +93,7 @@ def get_response(request_future, social_network):
     return response, error_context, expection_text
 
 
-def mori(site_datas, timeout):
+def mori(site_datas, result_printer, timeout):
     if len(site_datas) >= 20:
         max_workers = 20
     else:
@@ -134,67 +106,91 @@ def mori(site_datas, timeout):
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:55.0) Gecko/20100101 Firefox/55.0',
     }
 
-    results_total = {}
+    results_total = []
 
     for site_data in site_datas:
         check_result = 'Damage'
-        if site_data.get('headers'):
-            if isinstance(site_data.get('headers'), dict):
-                headers.update(site_data.get('headers'))
-            else:
-                console.print(
-                    'site: {}, headers must be a dictionary!'.format(site_data['name']))
-                return
+        try:
+            if site_data.get('headers'):
+                if isinstance(site_data.get('headers'), dict):
+                    headers.update(site_data.get('headers'))
 
-        for count in range(4):
-            proxies = None
-            if site_data.get('proxy'):
-                proxy = requests.get(site_data['proxy']).text
-                proxies = {"http": proxy, "https": proxy}
+            for _ in range(4):
+                proxies = None
+                if site_data.get('proxy'):
+                    proxy = requests.get(site_data['proxy']).text
+                    proxies = {"http": proxy, "https": proxy}
 
-            if site_data.get('data'):
-                site_data["request_future"] = session.post(
-                    site_data['url'], data=site_data['data'], headers=headers, timeout=timeout, proxies=proxies)
-            else:
-                site_data["request_future"] = session.get(
-                    site_data['url'], headers=headers, timeout=timeout, proxies=proxies)
-            future = site_data["request_future"]
-            r, error_text, expection_text = get_response(request_future=future,
-                                                         social_network=site_data['name'])
+                if site_data.get('data'):
+                    if headers.get('Content-Type') == 'application/json':
+                        site_data["request_future"] = session.post(
+                            site_data['url'], json=site_data['data'], headers=headers, timeout=timeout, proxies=proxies)
+                    else:
+                        # data = json.dumps(site_data['data'])
+                        site_data["request_future"] = session.post(
+                            site_data['url'], data=site_data['data'], headers=headers, timeout=timeout, proxies=proxies)
+                else:
+                    site_data["request_future"] = session.get(
+                        site_data['url'], headers=headers, timeout=timeout, proxies=proxies)
+                future = site_data["request_future"]
+                r, error_text, expection_text = get_response(request_future=future,
+                                                             social_network=site_data['name'])
 
-            if error_text:
-                logger.info(f'{error_text},{expection_text},{count}/4')
-            else:
-                break
+                if not error_text:
+                    break
 
-        if r:
-            try:
-                resp_json = json.loads(re.search('({.*})', r.text).group(1))
-                check_result = regex_checker(
-                    site_data['regex'], resp_json, site_data.get('exception'))
-                if check_result != 'OK':
-                    error_text = 'regex failed'
-            except Exception as _e:
-                error_text = 'data responsed is not json format.'
-                expection_text = _e
+            if r:
+                resp_text = r.text
 
-        results_total[site_data['name']] = {
-            'url': site_data['url'],
-            'resp_text': r.text if len(r.text) < 1000 else 'too long',
-            'resp_status_code': r.status_code,
-            'time': r.elapsed,
-            'error_text': error_text,
-            'expection_text': expection_text,
-            'check_result': check_result
-        }
+            if site_data.get('decrypt'):
+                try:
+                    import importlib
+                    package = importlib.import_module(site_data['decrypt'])
+                    Decrypt = package.Decrypt
+                    resp_text = Decrypt().decrypt(resp_text)
+                except Exception as _e:
+                    error_text = 'json decrypt error'
+                    expection_text = _e
+
+            if resp_text:
+                try:
+                    resp_json = json.loads(
+                        re.search('({.*})', resp_text).group(1))
+                    check_result = regex_checker(
+                        site_data['regex'], resp_json, site_data.get('exception'))
+                    if check_result != 'OK':
+                        error_text = 'regex failed'
+                except Exception as _e:
+                    error_text = 'data responsed is not json format.'
+                    expection_text = _e
+
+            result = {
+                'name': site_data['name'],
+                'url': site_data['url'],
+                'resp_text': resp_text if len(resp_text) < 1000 else 'too long',
+                'resp_status_code': r.status_code,
+                'time': r.elapsed,
+                'error_text': error_text,
+                'expection_text': expection_text,
+                'check_result': check_result
+            }
+
+        except Exception as error:
+            result = {
+                'name': site_data['name'],
+                'url': site_data['url'],
+                'resp_text': None,
+                'resp_status_code': -1,
+                'time': -1,
+                'error_text': 'site handler error',
+                'expection_text': error,
+                'check_result': check_result
+            }
+
+        results_total.append(result)
+        result_printer.printer(result)
 
     return results_total
-
-
-def map_simple_results(result):
-    sr = SimpleResult(result['name'], result['url'],
-                      result['check_result'], result['error_text'], str(round(result['time'], 4))+' s')
-    return sr
 
 
 def timeout_check(value):
@@ -212,11 +208,11 @@ def timeout_check(value):
 
 def main():
     """
-        __  ___           _    __ __      __                  
-       /  |/  /___  _____(_)  / //_/___  / /______  _________ 
+        __  ___           _    __ __      __
+       /  |/  /___  _____(_)  / //_/___  / /______  _________
       / /|_/ / __ \/ ___/ /  / ,< / __ \/ //_/ __ \/ ___/ __ \\
      / /  / / /_/ / /  / /  / /| / /_/ / ,< / /_/ / /  / /_/ /
-    /_/  /_/\____/_/  /_/  /_/ |_\____/_/|_|\____/_/   \____/ 
+    /_/  /_/\____/_/  /_/  /_/ |_\____/_/|_|\____/_/   \____/
 
     """
 
@@ -246,7 +242,7 @@ def main():
                         )
     parser.add_argument("--json", "-j", metavar="JSON_FILE",
                         dest="json_file", default=None,
-                        help="Load data from a JSON file or an online, valid, JSON file.")
+                        help="Load data from a local JSON file.")
     parser.add_argument("--print-invaild",
                         action="store_false", dest="print_invalid", default=False,
                         help="Output api(s) that was invalid."
@@ -262,7 +258,11 @@ def main():
 
     args = parser.parse_args()
 
-    with open('./apis.json', 'r') as f:
+    console = Console()
+
+    file_path = args.json_file or './apis.json'
+
+    with open(file_path, 'r') as f:
         apis = json.load(f)
     data_render(apis)
 
@@ -276,19 +276,32 @@ def main():
     else:
         tprint('Mori Kokoro')
 
-        results = mori(apis, timeout=args.timeout or 15)
+        result_printer = ResultPrinter(
+            args.verbose, args.print_invalid, console)
 
-        if args.print_invalid:
-            results = [foo for foo in results if not foo['check_result']]
+        results = mori(apis, result_printer, timeout=args.timeout or 15)
 
-        if args.verbose:
-            console.print(results)
-
-        else:
-            simple_results = list(map(map_simple_results, [
-                                  {'name': key, ** value} for key, value in results.items()]))
-            for foo in simple_results:
-                console.print(foo)
+        if args.csv:
+            console.print('[cyan]now generate report...')
+            with open("report.csv", "w", newline='', encoding="utf-8") as csv_report:
+                writer = csv.writer(csv_report)
+                writer.writerow(['name',
+                                 'url',
+                                 'status_code',
+                                 'time',
+                                 'check_result',
+                                 'error_text',
+                                 ]
+                                )
+                for site in results:
+                    writer.writerow([site['name'],
+                                     site['url'],
+                                     site['resp_status_code'],
+                                     site['time'],
+                                     site['check_result'],
+                                     site['error_text'],
+                                     ]
+                                    )
 
 
 if __name__ == "__main__":
