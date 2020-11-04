@@ -71,6 +71,7 @@ optional arguments:
 - regex(str,optional) : 遍历深度,如附录 1 中的示例代码. $number$ 中的 number 是遇到列表时使用的索引值.
   - class->$0$->students->$1$->name : 最终将检索到 _Tio_
 - decrypt(str,optional) : 外装 json 解析函数,值为文件名(如:mori_decrypt),详见[关于 **加密的** json 的解析](<#关于加密的\ json\ 的解析>)
+- proxy(str,optional) : 支持使用代理.字符串的内容为代理池的地址,返回代理(response.text)的格式形如: _http://58.218.200.247:2953_
 
 ### 补充说明
 
