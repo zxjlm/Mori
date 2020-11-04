@@ -207,15 +207,6 @@ def timeout_check(value):
 
 
 def main():
-    """
-        __  ___           _    __ __      __
-       /  |/  /___  _____(_)  / //_/___  / /______  _________
-      / /|_/ / __ \/ ___/ /  / ,< / __ \/ //_/ __ \/ ___/ __ \\
-     / /  / / /_/ / /  / /  / /| / /_/ / ,< / /_/ / /  / /_/ /
-    /_/  /_/\____/_/  /_/  /_/ |_\____/_/|_|\____/_/   \____/
-
-    """
-
     version_string = f"%(prog)s {__version__}\n" +  \
                      f"{requests.__description__}:  {requests.__version__}\n" + \
                      f"Python:  {platform.python_version()}"
