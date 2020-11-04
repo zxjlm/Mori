@@ -6,7 +6,6 @@ import time
 from rich.console import Console
 import platform
 from argparse import ArgumentParser, RawDescriptionHelpFormatter
-from art import tprint
 from printer import SimpleResult, ResultPrinter
 import csv
 
@@ -265,7 +264,14 @@ def main():
         console.print(apis_to_show)
 
     else:
-        tprint('Mori Kokoro')
+        r = r'''
+             __  __               _   _  __        _
+            |  \/  |  ___   _ __ (_) | |/ /  ___  | | __  ___   _ __   ___
+            | |\/| | / _ \ | '__|| | | ' /  / _ \ | |/ / / _ \ | '__| / _ \
+            | |  | || (_) || |   | | | . \ | (_) ||   < | (_) || |   | (_) |
+            |_|  |_| \___/ |_|   |_| |_|\_\ \___/ |_|\_\ \___/ |_|    \___/
+            '''
+        print(r)
 
         result_printer = ResultPrinter(
             args.verbose, args.print_invalid, console)
