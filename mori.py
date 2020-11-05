@@ -92,6 +92,19 @@ def get_response(request_future, social_network):
     return response, error_context, expection_text
 
 
+def get_proxy(site_data):
+    proxies = None
+    if site_data.get('proxy'):
+        if re.search(r'(\d+\.\d+\.\d+\.\d+:\d+)', site_data['proxy']):
+            proxy = 'http://' + \
+                re.search(r'(\d+\.\d+\.\d+\.\d+:\d+)',
+                          site_data['proxy']).group(1)
+        else:
+            proxy = requests.get(site_data['proxy']).text
+        proxies = {"http": proxy, "https": proxy}
+    return proxies
+
+
 def mori(site_datas, result_printer, timeout):
     if len(site_datas) >= 20:
         max_workers = 20
@@ -115,28 +128,20 @@ def mori(site_datas, result_printer, timeout):
                     headers.update(site_data.get('headers'))
 
             if site_data.get('antispider') and site_data.get('data'):
+                proxies = get_proxy(site_data)
                 try:
                     import importlib
                     package = importlib.import_module(site_data['antispider'])
                     Antispider = package.Antispider
                     site_data['data'], headers = Antispider(
-                        site_data['data'], headers).processor()
+                        site_data['data'], headers, proxies).processor()
                 except Exception as _e:
                     error_text = 'antispider error'
                     expection_text = _e
                     raise Exception(_e)
 
             for _ in range(4):
-                proxies = None
-                if site_data.get('proxy'):
-                    if re.search(r'(\d+\.\d+\.\d+\.\d+:\d+)', site_data['proxy']):
-                        proxy = 'http://' + \
-                            re.search(r'(\d+\.\d+\.\d+\.\d+:\d+)',
-                                      site_data['proxy']).group(1)
-                    else:
-                        proxy = requests.get(site_data['proxy']).text
-                    proxies = {"http": proxy, "https": proxy}
-
+                proxies = get_proxy(site_data)
                 if site_data.get('data'):
                     if headers.get('Content-Type') == 'application/json':
                         site_data["request_future"] = session.post(
@@ -316,6 +321,7 @@ def main():
                                      site['error_text'],
                                      ]
                                     )
+            console.print('[green]mission completed')
 
 
 if __name__ == "__main__":

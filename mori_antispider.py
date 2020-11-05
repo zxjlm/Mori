@@ -11,7 +11,7 @@ class Antispider(BaseAntiSpiderSolution):
 
     def processor(self):
         url = 'http://173.82.155.186/gettoken'
-        resp = requests.get(url)
+        resp = requests.get(url, headers=self.headers, proxies=self.proxies)
         if resp:
             self.data['token'] = resp.text.replace('"', '')
         else:

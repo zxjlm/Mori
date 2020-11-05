@@ -10,9 +10,10 @@ class BaseAntiSpiderSolution(metaclass=ABCMeta):
     反反爬虫类基于这两类构建
     """
 
-    def __init__(self, data, headers):
+    def __init__(self, data, headers, proxies):
         self.headers = headers
         self.data = data
+        self.proxies = proxies
 
     def processor(self):
         """
