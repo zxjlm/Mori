@@ -38,5 +38,16 @@
     "url": "http://mori.harumonia.moe/base64/",
     "regex": "class->$0$->students",
     "decrypt": "mori_decrypt"
+  },
+  {
+    "name": "Mori get api antispider",
+    "url": "http://mori.harumonia.moe/token/",
+    "regex": "result",
+    "antispider": "mori_antispider",
+    "headers": {
+      "Content-Type": "application/json",
+      "accept": "application/json"
+    },
+    "data": { "token": 1 }
   }
 ]

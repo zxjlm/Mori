@@ -9,7 +9,7 @@ from argparse import ArgumentParser, RawDescriptionHelpFormatter
 from printer import SimpleResult, ResultPrinter
 import csv
 
-__version__ = 'v0.2'
+__version__ = 'v0.3'
 module_name = "Mori Kokoro"
 
 
@@ -114,6 +114,18 @@ def mori(site_datas, result_printer, timeout):
                 if isinstance(site_data.get('headers'), dict):
                     headers.update(site_data.get('headers'))
 
+            if site_data.get('antispider') and site_data.get('data'):
+                try:
+                    import importlib
+                    package = importlib.import_module(site_data['antispider'])
+                    Antispider = package.Antispider
+                    site_data['data'], headers = Antispider(
+                        site_data['data'], headers).processor()
+                except Exception as _e:
+                    error_text = 'antispider error'
+                    expection_text = _e
+                    raise Exception(_e)
+
             for _ in range(4):
                 proxies = None
                 if site_data.get('proxy'):
@@ -186,7 +198,7 @@ def mori(site_datas, result_printer, timeout):
                 'resp_text': None,
                 'resp_status_code': -1,
                 'time': -1,
-                'error_text': 'site handler error',
+                'error_text': error_text or 'site handler error',
                 'expection_text': error,
                 'check_result': check_result
             }

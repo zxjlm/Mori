@@ -2,7 +2,7 @@
 
 Mori 是一个用来检测 api 各种属性的脚本。
 
-名字取自 _Mori Kokoro_ , 也就是 _毛利小五郎_ , 迷迷糊糊中完成的一个脚本。
+名字取自 _Mori Kokoro_ , 也就是 _毛利小五郎_ , 迷迷糊糊中完成的一个脚本
 
 ![mori.PNG](https://i.loli.net/2020/11/04/2rd9oFCMbUG7lLj.png)
 
@@ -87,10 +87,11 @@ optional arguments:
 - header(dict,optional) : 默认的 header 中提供一个 UA,如果有需要补充的，如 Refer 等，可以自行规定
 - regex(str,optional) : 遍历深度,如附录 1 中的示例代码. $number$ 中的 number 是遇到列表时使用的索引值.
   - class->$0$->students->$1$->name : 最终将检索到 _Tio_
-- decrypt(str,optional) : 外装 json 解析函数,值为文件名(如:mori_decrypt),详见[关于 **加密的** json 的解析](<#关于加密的\ json\ 的解析>)
 - proxy(str,optional) : 支持使用代理.两种调用方法。
   1. 字符串的内容为代理池的地址,返回代理(response.text)的格式形如: _"http://58.218.200.247:2953"_
   2. 字符串本身就是代理，形如: _"http://58.218.200.247:2953"_
+- decrypt(str,optional) : 外装 json 解析函数,值为文件名(如:mori_decrypt),详见[关于 **加密的** json 的解析](<#关于加密的\ json\ 的解析>)
+- antispider(str,optional) : 外装 反爬虫 解决方案,使用方法同 decrypt,样例见 **mori_antispider.py**
 
 ### 补充说明
 
