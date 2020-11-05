@@ -117,7 +117,12 @@ def mori(site_datas, result_printer, timeout):
             for _ in range(4):
                 proxies = None
                 if site_data.get('proxy'):
-                    proxy = requests.get(site_data['proxy']).text
+                    if re.search(r'(\d+\.\d+\.\d+\.\d+:\d+)', site_data['proxy']):
+                        proxy = 'http://' + \
+                            re.search(r'(\d+\.\d+\.\d+\.\d+:\d+)',
+                                      site_data['proxy']).group(1)
+                    else:
+                        proxy = requests.get(site_data['proxy']).text
                     proxies = {"http": proxy, "https": proxy}
 
                 if site_data.get('data'):

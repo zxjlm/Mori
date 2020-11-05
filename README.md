@@ -18,6 +18,7 @@ Mori 是一个用来检测 api 各种属性的脚本。
 - [ ] 完善案例
 - [ ] 添加 test
 - [ ] 兼容反反爬虫方法
+- [x] 扩展 proxy 调用方法
 
 ## Installation
 
@@ -87,7 +88,9 @@ optional arguments:
 - regex(str,optional) : 遍历深度,如附录 1 中的示例代码. $number$ 中的 number 是遇到列表时使用的索引值.
   - class->$0$->students->$1$->name : 最终将检索到 _Tio_
 - decrypt(str,optional) : 外装 json 解析函数,值为文件名(如:mori_decrypt),详见[关于 **加密的** json 的解析](<#关于加密的\ json\ 的解析>)
-- proxy(str,optional) : 支持使用代理.字符串的内容为代理池的地址,返回代理(response.text)的格式形如: _http://58.218.200.247:2953_
+- proxy(str,optional) : 支持使用代理.两种调用方法。
+  1. 字符串的内容为代理池的地址,返回代理(response.text)的格式形如: _"http://58.218.200.247:2953"_
+  2. 字符串本身就是代理，形如: _"http://58.218.200.247:2953"_
 
 ### 补充说明
 
