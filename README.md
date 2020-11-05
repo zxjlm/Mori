@@ -17,6 +17,22 @@ Mori 是一个用来检测 api 各种属性的脚本。
 - [ ] 拆分文件,简化代码
 - [ ] 完善案例
 - [ ] 添加 test
+- [ ] 兼容反反爬虫方法
+
+## Installation
+
+```shell
+# installation
+$ git@github.com:zxjlm/Mori.git
+$ cd Mori
+$ pip install -r requirements.txt
+
+# use
+$ python mori.py
+
+# help
+$ python mori.py --help
+```
 
 ## Usage
 
@@ -44,16 +60,9 @@ optional arguments:
                         results.
 ```
 
-```shell
-# 基础使用
-python mori.py
-```
-
-
-
 ## 关于 apis.json 文件
 
-所有的待搜索 api 都放在一个 json 文件中。
+所有的待搜索 api 都放在一个 json 文件中, 脚本会默认调用 apis.jsonm 但是可以通过 **--json** 来指定另外的文件。
 
 画风如下。
 
