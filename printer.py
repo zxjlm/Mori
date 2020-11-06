@@ -36,7 +36,7 @@ class ResultPrinter:
 
         def map_simple_results(result):
             sr = SimpleResult(result['name'], result['url'],
-                              result['check_result'], result['error_text'], result['time'])
+                              result['check_result'], result['error_text'], result['time(s)'])
             return sr
 
         if self.invalid and result['check_result'] != 'OK':

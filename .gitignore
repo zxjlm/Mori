@@ -131,4 +131,6 @@ dmypy.json
 
 apis_ext.json
 *.csv
-demo.py
+demo*
+*.xls
+config.py

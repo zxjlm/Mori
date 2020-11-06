@@ -7,9 +7,10 @@ from rich.console import Console
 import platform
 from argparse import ArgumentParser, RawDescriptionHelpFormatter
 from printer import SimpleResult, ResultPrinter
-import csv
+import xlwt
+from reporter import Reporter
 
-__version__ = 'v0.3'
+__version__ = 'v0.4'
 module_name = "Mori Kokoro"
 
 
@@ -190,27 +191,30 @@ def mori(site_datas, result_printer, timeout):
             result = {
                 'name': site_data['name'],
                 'url': site_data['url'],
-                'resp_text': resp_text if len(resp_text) < 1000 else 'too long',
-                'resp_status_code': r.status_code,
-                'time': r.elapsed,
+                'resp_text': resp_text if len(resp_text) < 500 else 'too long',
+                'status_code': r.status_code,
+                'time(s)': r.elapsed,
                 'error_text': error_text,
                 'expection_text': expection_text,
                 'check_result': check_result
             }
+
+            rel_result = result.copy()
+            rel_result['resp_text'] = resp_text
 
         except Exception as error:
             result = {
                 'name': site_data['name'],
                 'url': site_data['url'],
                 'resp_text': None,
-                'resp_status_code': -1,
-                'time': -1,
+                'status_code': -1,
+                'time(s)': -1,
                 'error_text': error_text or 'site handler error',
                 'expection_text': error,
                 'check_result': check_result
             }
 
-        results_total.append(result)
+        results_total.append(rel_result)
         result_printer.printer(result)
 
     return results_total
@@ -229,6 +233,51 @@ def timeout_check(value):
     return timeout
 
 
+def send_mail(receivers: list, file_content, html, subject, mail_host, mail_user, mail_pass, mail_port=0):
+    from email.message import EmailMessage
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.mime.base import MIMEBase
+    from email.mime.multipart import MIMEMultipart
+    import time
+    import mimetypes
+
+    sender = mail_user
+    message = MIMEMultipart()
+    message['From'] = sender
+    message['To'] = ';'.join(receivers)
+    message['Subject'] = subject
+
+    if html:
+        message.attach(MIMEText(html, 'html', 'utf-8'))
+
+    part = MIMEText(file_content.getvalue(), "vnd.ms-excel", 'utf-8')
+    part.add_header('Content-Disposition', 'attachment',
+                    filename=f'{subject}.xls')
+    message.attach(part)
+    # message.attach(file_content.getvalue(),
+    #                maintype='application',
+    #                subtype='vnd.ms-excel',
+    #                filename=f'{subject}.xls')
+
+    for count in range(4):
+        try:
+            if mail_port == 0:
+                smtp = smtplib.SMTP()
+                smtp.connect(mail_host)
+            else:
+                smtp = smtplib.SMTP_SSL(mail_host, mail_port)
+            smtp.ehlo()
+            smtp.login(mail_user, mail_pass)
+            smtp.sendmail(sender, receivers, message.as_string())
+            smtp.close()
+            break
+        except Exception as _e:
+            print(_e)
+            if count == 3:
+                raise Exception('failed to send email')
+
+
 def main():
     version_string = f"%(prog)s {__version__}\n" +  \
                      f"{requests.__description__}:  {requests.__version__}\n" + \
@@ -245,9 +294,9 @@ def main():
                         action="store_true",  dest="verbose", default=False,
                         help="Display extra debugging information and metrics."
                         )
-    parser.add_argument("--csv",
-                        action="store_true",  dest="csv", default=False,
-                        help="Create Comma-Separated Values (CSV) File."
+    parser.add_argument("--xls",
+                        action="store_true",  dest="xls", default=False,
+                        help="Create .xls File.(Microsoft Excel file format)"
                         )
     parser.add_argument("--show-all-site",
                         action="store_true",
@@ -257,6 +306,11 @@ def main():
     parser.add_argument("--json", "-j", metavar="JSON_FILE",
                         dest="json_file", default=None,
                         help="Load data from a local JSON file.")
+    parser.add_argument("--email", "-e",
+                        # metavar="EMAIL",
+                        action="store_true",
+                        dest="email", default=False,
+                        help="Send email to mailboxes in the file 'config.py'.")
     parser.add_argument("--print-invaild",
                         action="store_false", dest="print_invalid", default=False,
                         help="Output api(s) that was invalid."
@@ -302,28 +356,33 @@ def main():
 
         results = mori(apis, result_printer, timeout=args.timeout or 15)
 
-        if args.csv:
-            console.print('[cyan]now generate report...')
-            with open("report.csv", "w", newline='', encoding="utf-8") as csv_report:
-                writer = csv.writer(csv_report)
-                writer.writerow(['name',
-                                 'url',
-                                 'status_code',
-                                 'time',
-                                 'check_result',
-                                 'error_text',
-                                 ]
-                                )
-                for site in results:
-                    writer.writerow([site['name'],
-                                     site['url'],
-                                     site['resp_status_code'],
-                                     site['time'],
-                                     site['check_result'],
-                                     site['error_text'],
-                                     ]
-                                    )
+        if args.xls:
+            console.print('[cyan]now generating report...')
+
+            repo = Reporter(['name', 'url', 'status_code', 'time(s)',
+                             'check_result', 'error_text', 'resp_text'], results)
+            repo.processor()
+
             console.print('[green]mission completed')
+
+        if args.email:
+            try:
+                import config
+            except:
+                console.print(
+                    'can`t get config.py file, please read README.md, search keyword [red]config.py')
+            console.print('[cyan]now sending email...')
+            repo = Reporter(['name', 'url', 'status_code', 'time(s)',
+                             'check_result', 'error_text', 'resp_text'], results)
+            fs = repo.processor(is_stream=True)
+            html = repo.generate_table()
+            try:
+                send_mail(config.RECEIVERS, fs, html, config.MAIL_SUBJECT, config.MAIL_HOST,
+                          config.MAIL_USER, config.MAIL_PASS, getattr(config, 'MAIL_PORT', 0))
+
+                console.print('[green]mission completed')
+            except Exception as _e:
+                console.print(f'[red]mission failed,{_e}')
 
 
 if __name__ == "__main__":

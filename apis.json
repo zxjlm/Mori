@@ -17,7 +17,7 @@
   {
     "name": "Mori get api complex",
     "url": "http://mori.harumonia.moe/complex/",
-    "regex": ["class->$0$->students"]
+    "regex": ["class->$0$->students", "class->$0$->students->$1$->name"]
   },
   {
     "name": "Mori post api",
