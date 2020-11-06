@@ -134,3 +134,5 @@ apis_ext.json
 demo*
 *.xls
 config.py
+
+.idea/
