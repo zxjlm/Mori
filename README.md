@@ -86,7 +86,7 @@ optional arguments:
 - data(dict,optional) : data 是 post 时提交的数据; 支持使用 _{{time}}_ 之类的伪参数，程序会对该类型的参数进行一次渲染
   - {{time}} : 13 位的 unix 时间戳
 - header(dict,optional) : 默认的 header 中提供一个 UA,如果有需要补充的，如 Refer 等，可以自行规定
-- regex(str,optional) : 遍历深度,如附录 1 中的示例代码. $number$ 中的 number 是遇到列表时使用的索引值.
+- regex(list,optional) : 遍历深度,如附录 1 中的示例代码. $number$ 中的 number 是遇到列表时使用的索引值.
   - class->$0$->students->$1$->name : 最终将检索到 _Tio_
 - proxy(str,optional) : 支持使用代理.两种调用方法。
   1. 字符串的内容为代理池的地址,返回代理(response.text)的格式形如: _"http://58.218.200.247:2953"_

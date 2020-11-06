@@ -61,7 +61,7 @@ def data_render(apis):
 
     for idx, api in enumerate(apis):
         if "data" in api.keys():
-            coloring(apis[idx])
+            coloring(apis[idx]['data'])
 
 
 def get_response(request_future, social_network):
@@ -177,10 +177,12 @@ def mori(site_datas, result_printer, timeout):
                 try:
                     resp_json = json.loads(
                         re.search('({.*})', resp_text).group(1))
-                    check_result = regex_checker(
-                        site_data['regex'], resp_json, site_data.get('exception'))
-                    if check_result != 'OK':
-                        error_text = 'regex failed'
+                    for regex in site_data['regex']:
+                        check_result = regex_checker(
+                            regex, resp_json, site_data.get('exception'))
+                        if check_result != 'OK':
+                            error_text = 'regex failed'
+                            break
                 except Exception as _e:
                     error_text = 'data responsed is not json format.'
                     expection_text = _e

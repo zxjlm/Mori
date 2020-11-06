@@ -1,8 +1,48 @@
 [
   {
+    "name": "淘宝商品搜索建议",
+    "url": "https://suggest.taobao.com/sug?code=utf-8&q=%E7%89%99%E8%86%8F",
+    "regex": ["result"]
+  },
+  {
+    "name": "Mori get api without params",
+    "url": "http://mori.harumonia.moe/",
+    "regex": ["Hello"]
+  },
+  {
+    "name": "Mori get api with params",
+    "url": "http://mori.harumonia.moe/items/1",
+    "regex": ["host"]
+  },
+  {
+    "name": "Mori get api complex",
+    "url": "http://mori.harumonia.moe/complex/",
+    "regex": ["class->$0$->students"]
+  },
+  {
+    "name": "Mori post api",
+    "url": "http://mori.harumonia.moe/post",
+    "data": {
+      "classname": "7",
+      "student": "elo",
+      "sex": "M"
+    },
+    "regex": ["student"],
+    "headers": {
+      "Content-Type": "application/json",
+      "accept": "application/json"
+    }
+  },
+  {
+    "name": "Mori get api encrypt",
+    "url": "http://mori.harumonia.moe/base64/",
+    "regex": ["class->$0$->students"],
+    "decrypt": "mori_decrypt"
+  },
+  {
     "name": "Mori post api antispider",
     "url": "http://mori.harumonia.moe/token/",
-    "regex": "result",
+    "regex": ["result"],
     "antispider": "mori_antispider",
     "headers": {
       "Content-Type": "application/json",
