@@ -4,6 +4,7 @@ import re
 from requests_futures.sessions import FuturesSession
 import time
 from rich.console import Console
+from rich.traceback import Traceback
 import platform
 from argparse import ArgumentParser, RawDescriptionHelpFormatter
 from printer import SimpleResult, ResultPrinter
@@ -144,7 +145,7 @@ def mori(site_datas, result_printer, timeout):
             for _ in range(4):
                 proxies = get_proxy(site_data)
                 if site_data.get('data'):
-                    if headers.get('Content-Type') == 'application/json':
+                    if re.search(r'application.json', headers.get('Content-Type')):
                         site_data["request_future"] = session.post(
                             site_data['url'], json=site_data['data'], headers=headers, timeout=timeout, proxies=proxies)
                     else:
@@ -177,7 +178,10 @@ def mori(site_datas, result_printer, timeout):
             if resp_text:
                 try:
                     resp_json = json.loads(
-                        re.search('({.*})', resp_text).group(1))
+                        re.search('({.*})', resp_text.replace('\\', '')).group(1))
+                except Exception as _e:
+                    error_text = 'response data not json format'
+                try:
                     for regex in site_data['regex']:
                         check_result = regex_checker(
                             regex, resp_json, site_data.get('exception'))
@@ -185,13 +189,13 @@ def mori(site_datas, result_printer, timeout):
                             error_text = 'regex failed'
                             break
                 except Exception as _e:
-                    error_text = 'data responsed is not json format.'
+                    error_text = 'regex failed.'
                     expection_text = _e
 
             result = {
                 'name': site_data['name'],
                 'url': site_data['url'],
-                'resp_text': resp_text if len(resp_text) < 500 else 'too long',
+                'resp_text': resp_text if len(resp_text) < 500 else 'too long, and you can add --xls to see detail in *.xls file',
                 'status_code': r.status_code,
                 'time(s)': r.elapsed,
                 'error_text': error_text,
@@ -330,7 +334,7 @@ def main():
 
     file_path = args.json_file or './apis.json'
 
-    with open(file_path, 'r') as f:
+    with open(file_path, 'r', encoding='utf-8') as f:
         apis = json.load(f)
     data_render(apis)
 

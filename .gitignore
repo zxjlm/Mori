@@ -129,7 +129,7 @@ dmypy.json
 .pyre/
 
 
-apis_ext.json
+apis*.json
 *.csv
 demo*
 *.xls

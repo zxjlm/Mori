@@ -21,6 +21,7 @@ Mori 是一个用来检测 api 各种属性的脚本。
 - [x] 扩展 proxy 调用方法
 - [ ] 添加强校验模式
 - [x] 添加发送邮件选项
+- [ ] 特化代理
 
 ![email.PNG](https://i.loli.net/2020/11/06/1uxYtDOUyAWdkEa.png)
 
@@ -95,7 +96,7 @@ optional arguments:
 - proxy(str,optional) : 支持使用代理.两种调用方法。
   1. 字符串的内容为代理池的地址,返回代理(response.text)的格式形如: _"http://58.218.200.247:2953"_
   2. 字符串本身就是代理，形如: _"http://58.218.200.247:2953"_
-- decrypt(str,optional) : 外装 json 解析函数,值为文件名(如:mori_decrypt),详见[关于 **加密的** json 的解析](<#关于加密的-json-的解析>)
+- decrypt(str,optional) : 外装 json 解析函数,值为文件名(如:mori_decrypt),详见[关于 **加密的** json 的解析](#关于加密的-json-的解析)
 - antispider(str,optional) : 外装 反爬虫 解决方案,使用方法同 decrypt,样例见 **mori_antispider.py**
 
 ### 补充说明
