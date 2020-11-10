@@ -43,7 +43,10 @@ class ResultPrinter:
             return
 
         if self.verbose:
+            traceback = result.pop('traceback')
             self.console.print(result)
+            if result['check_result'] != 'OK':
+                self.console.print(traceback)
 
         else:
             simple_result = map_simple_results(result)

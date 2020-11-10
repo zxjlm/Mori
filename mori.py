@@ -124,6 +124,7 @@ def mori(site_datas, result_printer, timeout):
 
     for site_data in site_datas:
         check_result = 'Damage'
+        traceback, r = None, None
         try:
             if site_data.get('headers'):
                 if isinstance(site_data.get('headers'), dict):
@@ -138,9 +139,8 @@ def mori(site_datas, result_printer, timeout):
                     site_data['data'], headers = Antispider(
                         site_data['data'], headers, proxies).processor()
                 except Exception as _e:
-                    error_text = 'antispider error'
-                    expection_text = _e
-                    raise Exception(_e)
+                    traceback = Traceback()
+                    raise Exception('antispider error')
 
             for _ in range(4):
                 proxies = get_proxy(site_data)
@@ -172,15 +172,16 @@ def mori(site_datas, result_printer, timeout):
                     Decrypt = package.Decrypt
                     resp_text = Decrypt().decrypt(resp_text)
                 except Exception as _e:
-                    error_text = 'json decrypt error'
-                    expection_text = _e
+                    traceback = Traceback()
+                    raise Exception('json decrypt error')
 
             if resp_text:
                 try:
                     resp_json = json.loads(
                         re.search('({.*})', resp_text.replace('\\', '')).group(1))
                 except Exception as _e:
-                    error_text = 'response data not json format'
+                    traceback = Traceback()
+                    raise Exception('response data not json format')
                 try:
                     for regex in site_data['regex']:
                         check_result = regex_checker(
@@ -189,8 +190,8 @@ def mori(site_datas, result_printer, timeout):
                             error_text = 'regex failed'
                             break
                 except Exception as _e:
-                    error_text = 'regex failed.'
-                    expection_text = _e
+                    traceback = Traceback()
+                    raise Exception('regex failed.')
 
             result = {
                 'name': site_data['name'],
@@ -200,7 +201,8 @@ def mori(site_datas, result_printer, timeout):
                 'time(s)': r.elapsed,
                 'error_text': error_text,
                 'expection_text': expection_text,
-                'check_result': check_result
+                'check_result': check_result,
+                'traceback': traceback
             }
 
             rel_result = result.copy()
@@ -210,13 +212,14 @@ def mori(site_datas, result_printer, timeout):
             result = {
                 'name': site_data['name'],
                 'url': site_data['url'],
-                'resp_text': None,
-                'status_code': -1,
-                'time(s)': -1,
-                'error_text': error_text or 'site handler error',
-                'expection_text': error,
-                'check_result': check_result
+                'resp_text': resp_text if len(resp_text) < 500 else 'too long, and you can add --xls to see detail in *.xls file',
+                'status_code': r and r.status_code,
+                'time(s)': r and r.elapsed,
+                'error_text': error or 'site handler error',
+                'check_result': check_result,
+                'traceback': traceback
             }
+            rel_result = result.copy()
 
         results_total.append(rel_result)
         result_printer.printer(result)
@@ -259,10 +262,6 @@ def send_mail(receivers: list, file_content, html, subject, mail_host, mail_user
     part.add_header('Content-Disposition', 'attachment',
                     filename=f'{subject}.xls')
     message.attach(part)
-    # message.attach(file_content.getvalue(),
-    #                maintype='application',
-    #                subtype='vnd.ms-excel',
-    #                filename=f'{subject}.xls')
 
     for count in range(4):
         try:
@@ -315,7 +314,7 @@ def main():
                         action="store_true",
                         dest="email", default=False,
                         help="Send email to mailboxes in the file 'config.py'.")
-    parser.add_argument("--print-invaild",
+    parser.add_argument("--print-invalid",
                         action="store_false", dest="print_invalid", default=False,
                         help="Output api(s) that was invalid."
                         )
