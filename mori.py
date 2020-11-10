@@ -12,7 +12,7 @@ import xlwt
 from reporter import Reporter
 from proxy import Proxy
 
-__version__ = 'v0.4'
+__version__ = 'v0.5'
 module_name = "Mori Kokoro"
 
 

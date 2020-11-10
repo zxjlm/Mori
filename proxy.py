@@ -1,6 +1,5 @@
 import time
 import requests
-from config import CONFIG_PROXY_SERVICE
 import logging
 
 

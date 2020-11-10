@@ -21,8 +21,8 @@ Mori 是一个用来检测 api 各种属性的脚本。
 - [x] 扩展 proxy 调用方法
 - [ ] 添加强校验模式
 - [x] 添加发送邮件选项
-- [ ] 特化代理
-- [ ] 添加 traceback
+- [x] 特化代理
+- [x] 添加 traceback
 
 ![email.PNG](https://i.loli.net/2020/11/06/1uxYtDOUyAWdkEa.png)
 
