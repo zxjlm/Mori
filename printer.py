@@ -32,7 +32,7 @@ class ResultPrinter:
         self.invalid = invalid
         self.console = console
 
-    def printer(self, result):
+    def printer(self, result: dict) -> None:
 
         def map_simple_results(result):
             sr = SimpleResult(result['name'], result['url'],

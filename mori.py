@@ -10,6 +10,7 @@ from argparse import ArgumentParser, RawDescriptionHelpFormatter
 from printer import SimpleResult, ResultPrinter
 import xlwt
 from reporter import Reporter
+from proxy import Proxy
 
 __version__ = 'v0.4'
 module_name = "Mori Kokoro"
@@ -94,19 +95,6 @@ def get_response(request_future, social_network):
     return response, error_context, expection_text
 
 
-def get_proxy(site_data):
-    proxies = None
-    if site_data.get('proxy'):
-        if re.search(r'(\d+\.\d+\.\d+\.\d+:\d+)', site_data['proxy']):
-            proxy = 'http://' + \
-                re.search(r'(\d+\.\d+\.\d+\.\d+:\d+)',
-                          site_data['proxy']).group(1)
-        else:
-            proxy = requests.get(site_data['proxy']).text
-        proxies = {"http": proxy, "https": proxy}
-    return proxies
-
-
 def mori(site_datas, result_printer, timeout):
     if len(site_datas) >= 20:
         max_workers = 20
@@ -124,14 +112,14 @@ def mori(site_datas, result_printer, timeout):
 
     for site_data in site_datas:
         check_result = 'Damage'
-        traceback, r = None, None
+        traceback, r, resp_text = None, None, ''
         try:
             if site_data.get('headers'):
                 if isinstance(site_data.get('headers'), dict):
                     headers.update(site_data.get('headers'))
 
             if site_data.get('antispider') and site_data.get('data'):
-                proxies = get_proxy(site_data)
+                proxies = Proxy.get_proxy(site_data)
                 try:
                     import importlib
                     package = importlib.import_module(site_data['antispider'])
@@ -139,11 +127,10 @@ def mori(site_datas, result_printer, timeout):
                     site_data['data'], headers = Antispider(
                         site_data['data'], headers, proxies).processor()
                 except Exception as _e:
-                    traceback = Traceback()
                     raise Exception('antispider error')
 
             for _ in range(4):
-                proxies = get_proxy(site_data)
+                proxies = Proxy.get_proxy(site_data)
                 if site_data.get('data'):
                     if re.search(r'application.json', headers.get('Content-Type')):
                         site_data["request_future"] = session.post(
@@ -172,7 +159,6 @@ def mori(site_datas, result_printer, timeout):
                     Decrypt = package.Decrypt
                     resp_text = Decrypt().decrypt(resp_text)
                 except Exception as _e:
-                    traceback = Traceback()
                     raise Exception('json decrypt error')
 
             if resp_text:
@@ -180,7 +166,6 @@ def mori(site_datas, result_printer, timeout):
                     resp_json = json.loads(
                         re.search('({.*})', resp_text.replace('\\', '')).group(1))
                 except Exception as _e:
-                    traceback = Traceback()
                     raise Exception('response data not json format')
                 try:
                     for regex in site_data['regex']:
@@ -190,7 +175,6 @@ def mori(site_datas, result_printer, timeout):
                             error_text = 'regex failed'
                             break
                 except Exception as _e:
-                    traceback = Traceback()
                     raise Exception('regex failed.')
 
             result = {
@@ -217,7 +201,7 @@ def mori(site_datas, result_printer, timeout):
                 'time(s)': r and r.elapsed,
                 'error_text': error or 'site handler error',
                 'check_result': check_result,
-                'traceback': traceback
+                'traceback': Traceback()
             }
             rel_result = result.copy()
 

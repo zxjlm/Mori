@@ -134,5 +134,6 @@ apis*.json
 demo*
 *.xls
 config.py
+self*
 
 .idea/
