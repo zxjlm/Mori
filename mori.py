@@ -74,7 +74,7 @@ def get_response(request_future, social_network):
     try:
         response = request_future.result()
         if response.status_code:
-            error_context = f'status_code is {response.status_code}'
+            error_context = None
     except requests.exceptions.HTTPError as errh:
         error_context = "HTTP Error"
         expection_text = str(errh)
