@@ -89,15 +89,21 @@ optional arguments:
 
 - name(str) : 尽量唯一
 - url(str) : json 接口的 url
-- data(dict,optional) : data 是 post 时提交的数据; 支持使用 _{{time}}_ 之类的伪参数，程序会对该类型的参数进行一次渲染
+- data(dict,optional) : data 是 post 时提交的数据;  
+  支持使用 _{{time}}_ 之类的伪参数，程序会对该类型的参数进行一次渲染
   - {{time}} : 13 位的 unix 时间戳
-- header(dict,optional) : 默认的 header 中提供一个 UA,如果有需要补充的，如 Refer 等，可以自行规定
-- regex(list,optional) : 遍历深度,如 [附录](#附录) 中的示例代码. $number$ 中的 number 是遇到列表时使用的索引值.
+- header(dict,optional) :  
+  默认的 header 中提供一个 UA,如果有需要补充的，如 Refer 等，可以自行规定
+- regex(list,optional) :  
+  遍历深度,如 [附录](#附录) 中的示例代码. $number$ 中的 number 是遇到列表时使用的索引值.
   - class->$0$->students->$1$->name : 最终将检索到 _Tio_
 - proxy(str,optional) : 支持使用代理.调用方法如下：
-  - 字符串的内容为代理池的接口地址( 形如:_"http://proxy-api.com"_ ),返回代理(response.text)的格式形如: _"http://\*.\*.\*.\*:\*"_
-- decrypt(str,optional) : 外装 json 解析函数,值为文件名(如:mori_decrypt),详见[关于 **加密的** json 的解析](#关于加密的-json-的解析)
-- antispider(str,optional) : 外装 反爬虫 解决方案,使用方法同 decrypt,样例见 **mori_antispider.py**
+  - 字符串的内容为代理池的接口地址,形如:_"http://proxy-api.com"_  
+    返回代理(response.text)的格式,形如: _"http://\*.\*.\*.\*:\*"_
+- decrypt(str,optional) :  
+  外装 json 解析函数,值为文件名(如:mori_decrypt),详见[关于 **加密的** json 的解析](#关于加密的-json-的解析)
+- antispider(str,optional) :  
+  外装 反爬虫 解决方案,使用方法同 decrypt,样例见 **mori_antispider.py**
 
 ### 补充说明
 
@@ -125,7 +131,8 @@ MAIL_PORT = str # SSL时指定
 该 class 继承自 _decrypt.py_ 的 **BaseDecrypt** ,所以自然就有了如下要求:
 
 1. 必须包含 Decrypt 类
-2. Decrypt 类必须包含 decrypt(str)函数
+2. 必须放置于 **decrypt** 文件夹中
+3. Decrypt 类必须包含 decrypt(str)函数
 
 ## 附录
 

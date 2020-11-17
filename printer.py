@@ -13,15 +13,17 @@ class SimpleResult:
     time: float
 
     def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
+        if not isinstance(self.time, float):
+            self.time = -0.1
         yield Segment(self.name, Style(color="magenta"))
         yield Segment(':    ')
         yield Segment(self.url, Style(color="green"))
         yield Segment(' ,   ')
         yield Segment(self.result, Style(color="cyan"))
         yield Segment(' ,   ')
-        yield Segment(str(round(self.time, 4))+' s', Style(color="blue" if self.time < 5 else 'red'))
+        yield Segment(str(round(self.time, 4)) + ' s', Style(color="blue" if self.time < 5 else 'red'))
         yield Segment('\n')
-        if self.error_text:
+        if self.error_text and self.error_text != 'status_code is 200':
             yield Segment(f'\t\t error: {self.error_text}\n', Style(color="red"))
 
 

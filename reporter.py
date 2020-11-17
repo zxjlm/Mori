@@ -1,5 +1,5 @@
 import xlwt
-from io import BytesIO, StringIO
+from io import BytesIO
 
 
 class Reporter:

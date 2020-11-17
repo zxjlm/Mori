@@ -51,7 +51,6 @@ def regex_checker_recur(regexs, resp_json):
 
 
 def data_render(apis):
-
     def coloring(api):
         for key, value in api.items():
             if isinstance(value, list):
@@ -60,7 +59,7 @@ def data_render(apis):
             if isinstance(value, dict):
                 coloring(value)
             if value == "{{time}}":
-                api[key] = str(int(time.time()*1000))
+                api[key] = str(int(time.time() * 1000))
 
     for idx, api in enumerate(apis):
         if "data" in api.keys():
@@ -75,7 +74,7 @@ def get_response(request_future, social_network):
     try:
         response = request_future.result()
         if response.status_code:
-            error_context = None
+            error_context = f'status_code is {response.status_code}'
     except requests.exceptions.HTTPError as errh:
         error_context = "HTTP Error"
         expection_text = str(errh)
@@ -104,41 +103,45 @@ def mori(site_datas, result_printer, timeout):
     session = MoriFuturesSession(
         max_workers=max_workers, session=requests.Session())
 
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:55.0) Gecko/20100101 Firefox/55.0',
-    }
-
     results_total = []
 
     for site_data in site_datas:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:55.0) Gecko/20100101 Firefox/55.0',
+        }
         check_result = 'Damage'
         traceback, r, resp_text = None, None, ''
+
+        if site_data.get('proxy'):
+            Proxy.set_proxy_url(site_data['proxy'])
+
         try:
             if site_data.get('headers'):
                 if isinstance(site_data.get('headers'), dict):
                     headers.update(site_data.get('headers'))
 
             if site_data.get('antispider') and site_data.get('data'):
-                proxies = Proxy.get_proxy(site_data)
                 try:
                     import importlib
-                    package = importlib.import_module(site_data['antispider'])
+                    package = importlib.import_module('antispider.' + site_data['antispider'])
                     Antispider = package.Antispider
                     site_data['data'], headers = Antispider(
-                        site_data['data'], headers, proxies).processor()
+                        site_data['data'], headers).processor()
                 except Exception as _e:
                     raise Exception('antispider error')
 
             for _ in range(4):
-                proxies = Proxy.get_proxy(site_data)
+                proxies = Proxy.get_proxy()
                 if site_data.get('data'):
-                    if re.search(r'application.json', headers.get('Content-Type')):
+                    if re.search(r'application.json', headers.get('Content-Type', '')):
                         site_data["request_future"] = session.post(
-                            site_data['url'], json=site_data['data'], headers=headers, timeout=timeout, proxies=proxies)
+                            site_data['url'], json=site_data['data'], headers=headers, timeout=timeout, proxies=proxies,
+                            allow_redirects=True)
                     else:
                         # data = json.dumps(site_data['data'])
                         site_data["request_future"] = session.post(
-                            site_data['url'], data=site_data['data'], headers=headers, timeout=timeout, proxies=proxies)
+                            site_data['url'], data=site_data['data'], headers=headers, timeout=timeout, proxies=proxies,
+                            allow_redirects=True)
                 else:
                     site_data["request_future"] = session.get(
                         site_data['url'], headers=headers, timeout=timeout, proxies=proxies)
@@ -152,10 +155,11 @@ def mori(site_datas, result_printer, timeout):
             if r:
                 resp_text = r.text
 
-            if site_data.get('decrypt'):
+            if site_data.get('decrypt') and resp_text:
                 try:
                     import importlib
-                    package = importlib.import_module(site_data['decrypt'])
+                    package = importlib.import_module(
+                        'decrypt.' + site_data['decrypt'])
                     Decrypt = package.Decrypt
                     resp_text = Decrypt().decrypt(resp_text)
                 except Exception as _e:
@@ -180,7 +184,8 @@ def mori(site_datas, result_printer, timeout):
             result = {
                 'name': site_data['name'],
                 'url': site_data['url'],
-                'resp_text': resp_text if len(resp_text) < 500 else 'too long, and you can add --xls to see detail in *.xls file',
+                'resp_text': resp_text if len(
+                    resp_text) < 500 else 'too long, and you can add --xls to see detail in *.xls file',
                 'status_code': r.status_code,
                 'time(s)': r.elapsed,
                 'error_text': error_text,
@@ -196,7 +201,8 @@ def mori(site_datas, result_printer, timeout):
             result = {
                 'name': site_data['name'],
                 'url': site_data['url'],
-                'resp_text': resp_text if len(resp_text) < 500 else 'too long, and you can add --xls to see detail in *.xls file',
+                'resp_text': resp_text if len(
+                    resp_text) < 500 else 'too long, and you can add --xls to see detail in *.xls file',
                 'status_code': r and r.status_code,
                 'time(s)': r and r.elapsed,
                 'error_text': error or 'site handler error',
@@ -225,13 +231,9 @@ def timeout_check(value):
 
 
 def send_mail(receivers: list, file_content, html, subject, mail_host, mail_user, mail_pass, mail_port=0):
-    from email.message import EmailMessage
     import smtplib
     from email.mime.text import MIMEText
-    from email.mime.base import MIMEBase
     from email.mime.multipart import MIMEMultipart
-    import time
-    import mimetypes
 
     sender = mail_user
     message = MIMEMultipart()
@@ -266,7 +268,7 @@ def send_mail(receivers: list, file_content, html, subject, mail_host, mail_user
 
 
 def main():
-    version_string = f"%(prog)s {__version__}\n" +  \
+    version_string = f"%(prog)s {__version__}\n" + \
                      f"{requests.__description__}:  {requests.__version__}\n" + \
                      f"Python:  {platform.python_version()}"
 
@@ -274,15 +276,15 @@ def main():
                             description=f"{module_name} (Version {__version__})"
                             )
     parser.add_argument("--version",
-                        action="version",  version=version_string,
+                        action="version", version=version_string,
                         help="Display version information and dependencies."
                         )
     parser.add_argument("--verbose", "-v", "-d", "--debug",
-                        action="store_true",  dest="verbose", default=False,
+                        action="store_true", dest="verbose", default=False,
                         help="Display extra debugging information and metrics."
                         )
     parser.add_argument("--xls",
-                        action="store_true",  dest="xls", default=False,
+                        action="store_true", dest="xls", default=False,
                         help="Create .xls File.(Microsoft Excel file format)"
                         )
     parser.add_argument("--show-all-site",
@@ -325,7 +327,7 @@ def main():
 
         keys_to_show = ['name', 'url', 'data']
         apis_to_show = list(map(lambda api: {key: value for key,
-                                             value in api.items() if key in keys_to_show}, apis))
+                                                            value in api.items() if key in keys_to_show}, apis))
         console.print(apis_to_show)
 
     else:

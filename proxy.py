@@ -4,6 +4,11 @@ import logging
 
 
 class Proxy:
+    """
+    获取代理
+    """
+    proxy_url = ''
+    proxies = None
 
     @staticmethod
     def get_api(api_addr: str) -> dict:
@@ -40,17 +45,28 @@ class Proxy:
         return result
 
     @staticmethod
-    def get_proxy(site_data):
+    def get_proxy():
+        """
+        从接口获取代理
+        """
         proxies = None
-        if site_data.get('proxy'):
+        if Proxy.proxy_url:
             # if re.search(r'(\d+\.\d+\.\d+\.\d+:\d+)', site_data['proxy']):
             #     proxy = 'http://' + \
             #         re.search(r'(\d+\.\d+\.\d+\.\d+:\d+)',
             #                   site_data['proxy']).group(1)
             #     proxies = {"http": proxy, "https": proxy}
             # else:
-            proxies = Proxy.get_api(site_data['proxy'])
+            proxies = Proxy.get_api(Proxy.proxy_url)
             if not proxies:
                 raise Exception('failed to get proxies')
+            Proxy.proxies = proxies
 
         return proxies
+
+    @staticmethod
+    def set_proxy_url(proxy_url):
+        """
+        固定代理链接
+        """
+        Proxy.proxy_url = proxy_url

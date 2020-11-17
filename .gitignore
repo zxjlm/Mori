@@ -137,3 +137,7 @@ config.py
 self*
 
 .idea/
+*_test.py
+court_*
+workspace.code*
+.vscode
