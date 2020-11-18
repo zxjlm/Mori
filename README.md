@@ -91,6 +91,7 @@ optional arguments:
 
 - name(str ) : 配置名, **建议唯一**
 - url(str) : json 接口的 url
+- base_url(str,optional) : 主页面的url,目的是方面报错之后查看
 - data(dict,optional) : data 是 post 时提交的数据;  
   支持使用 _{{time}}_ 之类的伪参数，程序会对该类型的参数进行一次渲染
   - {{time}} : 13 位的 unix 时间戳
@@ -106,6 +107,7 @@ optional arguments:
   外装 json 解析函数,值为文件名(如:mori_decrypt),详见[关于 **加密的** json 的解析](#关于加密的-json-的解析)
 - antispider(str,optional) :  
   外装 反爬虫 解决方案,使用方法同 decrypt,样例见 **mori_antispider.py**
+- remark(str, optional) : 备注信息
 
 ### 补充说明
 

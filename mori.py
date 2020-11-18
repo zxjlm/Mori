@@ -114,7 +114,7 @@ def get_response(request_future, site_data):
     """
     response = None
     check_result = 'Damage'
-    check_results = []
+    check_results = {}
     traceback = None
 
     try:
@@ -195,7 +195,7 @@ def mori(site_datas, result_printer, timeout) -> list:
     session = MoriFuturesSession(
         max_workers=max_workers, session=requests.Session())
 
-    results_total, error_text, exception_text, check_result, check_results = [], '', '', 'Unknown', []
+    results_total, error_text, exception_text, check_result, check_results = [], '', '', 'Unknown', {}
 
     for site_data in site_datas:
         headers = {
@@ -221,7 +221,7 @@ def mori(site_datas, result_printer, timeout) -> list:
                 except Exception as _e:
                     raise Exception('antispider error')
 
-            for _ in range(4):
+            for _ in range(6):
                 proxies = Proxy.get_proxy()
                 if site_data.get('data'):
                     if re.search(r'application.json', headers.get('Content-Type', '')):
@@ -246,32 +246,36 @@ def mori(site_datas, result_printer, timeout) -> list:
             result = {
                 'name': site_data['name'],
                 'url': site_data['url'],
+                'base_url': site_data.get('base_url', ''),
                 'resp_text': resp_text if len(
                     resp_text) < 500 else 'too long, and you can add --xls to see detail in *.xls file',
-                'status_code': r.status_code,
-                'time(s)': r.elapsed,
+                'status_code': r and r.status_code,
+                'time(s)': r.elapsed if r else -1,
                 'error_text': error_text,
                 'expection_text': exception_text,
                 'check_result': check_result,
                 'traceback': traceback,
-                'check_results': check_results
+                'check_results': check_results,
+                'remark': site_data.get('remark', '')
             }
 
-            rel_result = result.copy()
+            rel_result = dict(result.copy())
             rel_result['resp_text'] = resp_text
 
         except Exception as error:
             result = {
                 'name': site_data['name'],
                 'url': site_data['url'],
+                'base_url': site_data['base_url'],
                 'resp_text': resp_text if len(
                     resp_text) < 500 else 'too long, and you can add --xls to see detail in *.xls file',
                 'status_code': r and r.status_code,
-                'time(s)': r and r.elapsed,
+                'time(s)': r.elapsed if r else -1,
                 'error_text': error or 'site handler error',
                 'check_result': check_result,
                 'traceback': Traceback(),
-                'check_results': check_results
+                'check_results': check_results,
+                'remark': site_data.get('remark', '')
             }
             rel_result = result.copy()
 
@@ -419,38 +423,39 @@ def main():
 
         results = mori(apis, result_printer, timeout=args.timeout or 15)
 
-        for i, result in enumerate(results):
-            results[i]['check_results'] = '\n'.join(
-                [f'{key} : {value}' for key, value in result['check_results'].items()])
+        if args.xls or args.email:
+            for i, result in enumerate(results):
+                results[i]['check_results'] = '\n'.join(
+                    [f'{key} : {value}' for key, value in result['check_results'].items()])
 
-        if args.xls:
-            console.print('[cyan]now generating report...')
+            repo = Reporter(['name', 'url', 'base_url', 'status_code', 'time(s)',
+                             'check_result', 'check_results', 'error_text', 'remark', 'resp_text'], results)
 
-            repo = Reporter(['name', 'url', 'status_code', 'time(s)',
-                             'check_result', 'check_results', 'error_text', 'resp_text'], results)
-            repo.processor()
+            if args.xls:
+                console.print('[cyan]now generating report...')
 
-            console.print('[green]mission completed')
-
-        if args.email:
-            try:
-                import config
-            except Exception as _e:
-                console.print(
-                    'can`t get config.py file, please read README.md, search keyword [red]config.py', _e)
-                return
-            console.print('[cyan]now sending email...')
-            repo = Reporter(['name', 'url', 'status_code', 'time(s)',
-                             'check_result', 'check_results', 'error_text', 'resp_text'], results)
-            fs = repo.processor(is_stream=True)
-            html = repo.generate_table()
-            try:
-                send_mail(config.RECEIVERS, fs, html, config.MAIL_SUBJECT, config.MAIL_HOST,
-                          config.MAIL_USER, config.MAIL_PASS, getattr(config, 'MAIL_PORT', 0))
+                repo.processor()
 
                 console.print('[green]mission completed')
-            except Exception as _e:
-                console.print(f'[red]mission failed,{_e}')
+
+            if args.email:
+                try:
+                    import config
+                except Exception as _e:
+                    console.print(
+                        'can`t get config.py file, please read README.md, search keyword [red]config.py', _e)
+                    return
+                console.print('[cyan]now sending email...')
+
+                fs = repo.processor(is_stream=True)
+                html = repo.generate_table()
+                try:
+                    send_mail(config.RECEIVERS, fs, html, config.MAIL_SUBJECT, config.MAIL_HOST,
+                              config.MAIL_USER, config.MAIL_PASS, getattr(config, 'MAIL_PORT', 0))
+
+                    console.print('[green]mission completed')
+                except Exception as _e:
+                    console.print(f'[red]mission failed,{_e}')
 
 
 if __name__ == "__main__":
