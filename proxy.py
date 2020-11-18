@@ -13,7 +13,7 @@ class Proxy:
     @staticmethod
     def test_api(proxies):
         url = 'https://www.baidu.com/'
-        resp = requests.get(url, proxies=proxies)
+        resp = requests.get(url, proxies=proxies, timeout=15)
         return resp and resp.status_code == 200
 
     @staticmethod

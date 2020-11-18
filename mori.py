@@ -116,6 +116,7 @@ def get_response(request_future, site_data):
     check_result = 'Damage'
     check_results = {}
     traceback = None
+    resp_text = ''
 
     try:
         response = request_future.result()
@@ -180,7 +181,7 @@ def get_response(request_future, site_data):
         error_context = "Unknown Error"
         exception_text = str(err)
 
-    return response, error_context, exception_text, check_results, check_result, traceback
+    return response, error_context, exception_text, check_results, check_result, traceback, resp_text
 
 
 def mori(site_datas, result_printer, timeout) -> list:
@@ -236,11 +237,11 @@ def mori(site_datas, result_printer, timeout) -> list:
                     site_data["request_future"] = session.get(
                         site_data['url'], headers=headers, timeout=timeout, proxies=proxies)
                 future = site_data["request_future"]
-                r, error_text, exception_text, check_results, check_result, traceback = get_response(
+                r, error_text, exception_text, check_results, check_result, traceback, resp_text = get_response(
                     request_future=future,
                     site_data=site_data)
 
-                if not error_text:
+                if not error_text and resp_text:
                     break
 
             result = {
@@ -386,7 +387,7 @@ def main():
                         action="store", metavar='TIMEOUT',
                         dest="timeout", type=timeout_check, default=None,
                         help="Time (in seconds) to wait for response to requests. "
-                             "Default timeout is infinity. "
+                             "Default timeout is 30s. "
                              "A longer timeout will be more likely to get results from slow sites. "
                              "On the other hand, this may cause a long delay to gather all results."
                         )
@@ -421,7 +422,7 @@ def main():
         result_printer = ResultPrinter(
             args.verbose, args.print_invalid, console)
 
-        results = mori(apis, result_printer, timeout=args.timeout or 15)
+        results = mori(apis, result_printer, timeout=args.timeout or 30)
 
         if args.xls or args.email:
             for i, result in enumerate(results):
