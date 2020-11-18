@@ -19,10 +19,12 @@ Mori 是一个用来检测 api 各种属性的脚本。
 - [ ] 添加 test
 - [x] 兼容反反爬虫方法
 - [x] 扩展 proxy 调用方法
-- [ ] 添加强校验模式
+- [x] 添加强校验模式
 - [x] 添加发送邮件选项
 - [x] 特化代理
 - [x] 添加 traceback
+- [x] 添加注释
+- [ ] 对 --verbose 输出上色
 
 ![email.PNG](https://i.loli.net/2020/11/06/1uxYtDOUyAWdkEa.png)
 
@@ -87,7 +89,7 @@ optional arguments:
 
 ### 参数说明
 
-- name(str) : 尽量唯一
+- name(str ) : 配置名, **建议唯一**
 - url(str) : json 接口的 url
 - data(dict,optional) : data 是 post 时提交的数据;  
   支持使用 _{{time}}_ 之类的伪参数，程序会对该类型的参数进行一次渲染

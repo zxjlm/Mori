@@ -10,7 +10,12 @@
     "regex": ["Hello"]
   },
   {
-    "name": "Mori get api without params | error case",
+    "name": "Mori get api without params | error case | key-error",
+    "url": "http://mori.harumonia.moe/",
+    "regex": ["hello->error"]
+  },
+  {
+    "name": "Mori get api without params | error case | type-error",
     "url": "http://mori.harumonia.moe/",
     "regex": ["Hello->error"]
   },

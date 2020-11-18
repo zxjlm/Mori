@@ -46,9 +46,13 @@ class ResultPrinter:
 
         if self.verbose:
             traceback = result.pop('traceback')
-            self.console.print(result)
+            # result.pop('check_result')
+
             if result['check_result'] != 'OK':
+                self.console.print(result, style=Style(color='red', underline=True))
                 self.console.print(traceback)
+            else:
+                self.console.print(result)
 
         else:
             simple_result = map_simple_results(result)
