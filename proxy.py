@@ -11,6 +11,12 @@ class Proxy:
     proxies = None
 
     @staticmethod
+    def test_api(proxies):
+        url = 'https://www.baidu.com/'
+        resp = requests.get(url, proxies=proxies)
+        return resp and resp.status_code == 200
+
+    @staticmethod
     def get_api(api_addr: str) -> dict:
         """
         请求接口，获取代理。 
@@ -31,13 +37,14 @@ class Proxy:
                         'https': ip_addr,
                         'http': ip_addr
                     }
-                    break
+                    if Proxy.test_api(result):
+                        break
                 if str(status) == "400" or str(status) == "503":
                     logging.warning(response.text)
                     continue
                 if not response.text.strip():
                     logging.warning("返回代理为空")
-            except:
+            except Exception as _:
                 continue
             finally:
                 if response is not None:

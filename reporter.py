@@ -21,8 +21,8 @@ class Reporter:
             self.worksheet.write(0, col, value, style)
 
     def row_writer(self, inx: int, result: dict):
-        style = xlwt.XFStyle()
         for col, header in enumerate(self.headers):
+            style = xlwt.XFStyle()
             if result['check_result'] != 'OK':
                 style = xlwt.XFStyle()
                 font = xlwt.Font()
@@ -32,13 +32,17 @@ class Reporter:
                 result[header] = 'too long'
             if header == 'time(s)':
                 result[header] = round(result[header], 4)
+            if header == 'check_results':
+                style.alignment.wrap = 1
             self.worksheet.write(inx, col, result[header], style)
 
     def generate_excel(self, file_name):
         self.generate_headers()
 
         for inx, foo in enumerate(self.results):
-            self.row_writer(inx+1, foo)
+            self.row_writer(inx + 1, foo)
+        check_results_col = self.worksheet.col(self.headers.index('check_results'))
+        check_results_col.width = 720 * 20
 
         self.workbook.save(file_name)
         ...
@@ -46,6 +50,9 @@ class Reporter:
     def generate_table(self):
         th = ''
         for value in self.headers:
+            if 'url' in value:
+                th += f'<th style="border:1px solid;width: 10%;">{value}</th>'
+                continue
             th += f'<th style="border:1px solid">{value}</th>'
         thead = f'<thead style="background-color:gray;">{th}</thead>'
         tbody = ''
@@ -53,6 +60,13 @@ class Reporter:
             tr = ''
             for header in self.headers:
                 if header == 'resp_text':
+                    continue
+                if 'url' in header:
+                    tr += f'<td style="border:1px solid;width: 10%;">{result[header]}</td>'
+                    continue
+                if header == 'check_results':
+                    cell_value = result[header].replace("\n", "<hr>")
+                    tr += f'<td style="border:1px solid;width: 10%;">{cell_value}</td>'
                     continue
                 tr += f'<td style="border:1px solid">{result[header]}</td>'
             if result['check_result'] != "OK":
