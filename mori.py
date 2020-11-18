@@ -267,7 +267,7 @@ def mori(site_datas, result_printer, timeout) -> list:
             result = {
                 'name': site_data['name'],
                 'url': site_data['url'],
-                'base_url': site_data['base_url'],
+                'base_url': site_data.get('base_url',''),
                 'resp_text': resp_text if len(
                     resp_text) < 500 else 'too long, and you can add --xls to see detail in *.xls file',
                 'status_code': r and r.status_code,

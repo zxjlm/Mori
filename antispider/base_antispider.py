@@ -1,7 +1,6 @@
-from abc import ABCMeta, abstractmethod
+from abc import ABCMeta
 
 import requests
-from loguru import logger
 
 from proxy import Proxy
 
