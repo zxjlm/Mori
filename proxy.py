@@ -9,10 +9,11 @@ class Proxy:
     """
     proxy_url = ''
     proxies = None
+    strict_proxy = None
 
     @staticmethod
     def test_api(proxies):
-        url = 'https://www.baidu.com/'
+        url = Proxy.strict_proxy if Proxy.strict_proxy else 'https://www.baidu.com/'
         resp = requests.get(url, proxies=proxies, timeout=15)
         return resp and resp.status_code == 200
 
@@ -22,8 +23,6 @@ class Proxy:
         请求接口，获取代理。 
         return 代理格式 "http://*.*.*.*:*"
         """
-        result = {}
-        response = None
         for _ in range(0, 6):
             try:
                 response = requests.get(
@@ -38,18 +37,16 @@ class Proxy:
                         'http': ip_addr
                     }
                     if Proxy.test_api(result):
-                        break
+                        return result
                 if str(status) == "400" or str(status) == "503":
                     logging.warning(response.text)
                     continue
                 if not response.text.strip():
-                    logging.warning("返回代理为空")
+                    # logging.warning("返回代理为空")
+                    ...
             except Exception as _:
                 continue
-            finally:
-                if response is not None:
-                    response.close()
-        return result
+        return None
 
     @staticmethod
     def get_proxy():
@@ -72,8 +69,9 @@ class Proxy:
         return proxies
 
     @staticmethod
-    def set_proxy_url(proxy_url):
+    def set_proxy_url(proxy_url, strict_proxy):
         """
         固定代理链接
         """
         Proxy.proxy_url = proxy_url
+        Proxy.strict_proxy = strict_proxy

@@ -21,7 +21,7 @@ from reporter import Reporter
 from proxy import Proxy
 from rich.progress import track
 
-__version__ = 'v0.6'
+__version__ = 'v0.7'
 module_name = "Mori Kokoro"
 
 
@@ -46,7 +46,7 @@ class MoriFuturesSession(FuturesSession):
             resp.elapsed = time.monotonic() - start
             return
 
-        hooks['response'] = response_time
+        hooks['response'] = [response_time]
 
         return super(MoriFuturesSession, self).request(method,
                                                        url,
@@ -145,8 +145,9 @@ def get_response(request_future, site_data):
 
         if resp_text:
             try:
+                # 有些键可能值是null,这种实际上是可以通过判断逻辑的,所以使用占位符(placeholder)来解除null
                 resp_json = json.loads(
-                    re.search('({.*})', resp_text.replace('\\', '')).group(1))
+                    re.search('({.*})', resp_text.replace('\\', '').replace('null', '"placeholder"')).group(1))
             except Exception as _e:
                 traceback = Traceback()
                 error_context = 'response data not json format'
@@ -169,6 +170,7 @@ def get_response(request_future, site_data):
         error_context = "HTTP Error"
         exception_text = str(errh)
     except requests.exceptions.ProxyError as errp:
+        # site_data['request_future']
         error_context = "Proxy Error"
         exception_text = str(errp)
     except requests.exceptions.ConnectionError as errc:
@@ -204,7 +206,7 @@ def mori(site_datas, result_printer, timeout) -> list:
         }
 
         if site_data.get('proxy'):
-            Proxy.set_proxy_url(site_data['proxy'])
+            Proxy.set_proxy_url(site_data['proxy'], site_data.get('strict_proxy'))
 
         if site_data.get('headers'):
             if isinstance(site_data.get('headers'), dict):
@@ -218,9 +220,20 @@ def mori(site_datas, result_printer, timeout) -> list:
                 site_data['data'], headers = Antispider(
                     site_data['data'], headers).processor()
             except Exception as _e:
-                raise Exception('antispider error')
+                site_data['single'] = True
+                site_data['error_text'] = 'antispider failed'
+                site_data['exception_text'] = _e
+                site_data['traceback'] = Traceback()
+                continue
 
-        proxies = Proxy.get_proxy()
+        try:
+            proxies = Proxy.get_proxy()
+        except Exception as _e:
+            site_data['single'] = True
+            site_data['error_text'] = 'all of six proxies can`t be used'
+            site_data['exception_text'] = _e
+            site_data['traceback'] = Traceback()
+            continue
         if site_data.get('data'):
             if re.search(r'application.json', headers.get('Content-Type', '')):
                 site_data["request_future"] = session.post(
@@ -237,10 +250,16 @@ def mori(site_datas, result_printer, timeout) -> list:
     for site_data in site_datas:
         traceback, r, resp_text = None, None, ''
         try:
-            future = site_data["request_future"]
-            r, error_text, exception_text, check_results, check_result, traceback, resp_text = get_response(
-                request_future=future,
-                site_data=site_data)
+            if site_data.get('single'):
+                check_result = 'Damage'
+                error_text = site_data['error_text']
+                exception_text = site_data['exception_text']
+                traceback = site_data['traceback']
+            else:
+                future = site_data["request_future"]
+                r, error_text, exception_text, check_results, check_result, traceback, resp_text = get_response(
+                    request_future=future,
+                    site_data=site_data)
 
             result = {
                 'name': site_data['name'],
@@ -422,6 +441,7 @@ def main():
             args.verbose, args.print_invalid, console)
 
         # start = time.perf_counter()
+        # for _ in range(20):
         results = mori(apis, result_printer, timeout=args.timeout or 30)
         # use_time = time.perf_counter() - start
         # print('total_use_time:{}'.format(use_time))
