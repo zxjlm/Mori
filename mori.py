@@ -19,6 +19,7 @@ from argparse import ArgumentParser, RawDescriptionHelpFormatter
 from printer import ResultPrinter
 from reporter import Reporter
 from proxy import Proxy
+from rich.progress import track
 
 __version__ = 'v0.6'
 module_name = "Mori Kokoro"
@@ -157,7 +158,6 @@ def get_response(request_future, site_data):
 
                 if list(check_results.values()) != ['OK'] * len(check_results):
                     error_context = 'regex failed'
-                    check_result = 'Damage'
                 else:
                     check_result = 'OK'
 
@@ -198,51 +198,49 @@ def mori(site_datas, result_printer, timeout) -> list:
 
     results_total, error_text, exception_text, check_result, check_results = [], '', '', 'Unknown', {}
 
-    for site_data in site_datas:
+    for site_data in track(site_datas, description="Preparing..."):
         headers = {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:55.0) Gecko/20100101 Firefox/55.0',
         }
-        traceback, r, resp_text = None, None, ''
 
         if site_data.get('proxy'):
             Proxy.set_proxy_url(site_data['proxy'])
 
+        if site_data.get('headers'):
+            if isinstance(site_data.get('headers'), dict):
+                headers.update(site_data.get('headers'))
+
+        if site_data.get('antispider') and site_data.get('data'):
+            try:
+                import importlib
+                package = importlib.import_module('antispider.' + site_data['antispider'])
+                Antispider = getattr(package, 'Antispider')
+                site_data['data'], headers = Antispider(
+                    site_data['data'], headers).processor()
+            except Exception as _e:
+                raise Exception('antispider error')
+
+        proxies = Proxy.get_proxy()
+        if site_data.get('data'):
+            if re.search(r'application.json', headers.get('Content-Type', '')):
+                site_data["request_future"] = session.post(
+                    site_data['url'], json=site_data['data'], headers=headers, timeout=timeout, proxies=proxies,
+                    allow_redirects=True)
+            else:
+                site_data["request_future"] = session.post(
+                    site_data['url'], data=site_data['data'], headers=headers, timeout=timeout, proxies=proxies,
+                    allow_redirects=True)
+        else:
+            site_data["request_future"] = session.get(
+                site_data['url'], headers=headers, timeout=timeout, proxies=proxies)
+
+    for site_data in site_datas:
+        traceback, r, resp_text = None, None, ''
         try:
-            if site_data.get('headers'):
-                if isinstance(site_data.get('headers'), dict):
-                    headers.update(site_data.get('headers'))
-
-            if site_data.get('antispider') and site_data.get('data'):
-                try:
-                    import importlib
-                    package = importlib.import_module('antispider.' + site_data['antispider'])
-                    Antispider = getattr(package, 'Antispider')
-                    site_data['data'], headers = Antispider(
-                        site_data['data'], headers).processor()
-                except Exception as _e:
-                    raise Exception('antispider error')
-
-            for _ in range(6):
-                proxies = Proxy.get_proxy()
-                if site_data.get('data'):
-                    if re.search(r'application.json', headers.get('Content-Type', '')):
-                        site_data["request_future"] = session.post(
-                            site_data['url'], json=site_data['data'], headers=headers, timeout=timeout, proxies=proxies,
-                            allow_redirects=True)
-                    else:
-                        site_data["request_future"] = session.post(
-                            site_data['url'], data=site_data['data'], headers=headers, timeout=timeout, proxies=proxies,
-                            allow_redirects=True)
-                else:
-                    site_data["request_future"] = session.get(
-                        site_data['url'], headers=headers, timeout=timeout, proxies=proxies)
-                future = site_data["request_future"]
-                r, error_text, exception_text, check_results, check_result, traceback, resp_text = get_response(
-                    request_future=future,
-                    site_data=site_data)
-
-                if not error_text and resp_text:
-                    break
+            future = site_data["request_future"]
+            r, error_text, exception_text, check_results, check_result, traceback, resp_text = get_response(
+                request_future=future,
+                site_data=site_data)
 
             result = {
                 'name': site_data['name'],
@@ -267,7 +265,7 @@ def mori(site_datas, result_printer, timeout) -> list:
             result = {
                 'name': site_data['name'],
                 'url': site_data['url'],
-                'base_url': site_data.get('base_url',''),
+                'base_url': site_data.get('base_url', ''),
                 'resp_text': resp_text if len(
                     resp_text) < 500 else 'too long, and you can add --xls to see detail in *.xls file',
                 'status_code': r and r.status_code,
@@ -347,6 +345,7 @@ def main():
     """
     入口
     """
+
     version_string = f"%(prog)s {__version__}\n" + \
                      f"requests:  {requests.__version__}\n" + \
                      f"Python:  {platform.python_version()}"
@@ -422,7 +421,10 @@ def main():
         result_printer = ResultPrinter(
             args.verbose, args.print_invalid, console)
 
+        # start = time.perf_counter()
         results = mori(apis, result_printer, timeout=args.timeout or 30)
+        # use_time = time.perf_counter() - start
+        # print('total_use_time:{}'.format(use_time))
 
         if args.xls or args.email:
             for i, result in enumerate(results):
