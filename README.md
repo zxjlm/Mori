@@ -89,7 +89,7 @@ optional arguments:
 
 ### 参数说明
 
-- name(str ) : 配置名, **建议唯一**
+- name(str ) : 配置名, **唯一**
 - url(str) : json 接口的 url
 - base_url(str,optional) : 主页面的url,目的是方面报错之后查看
 - data(dict,optional) : data 是 post 时提交的数据;  
