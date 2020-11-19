@@ -24,7 +24,7 @@ class Proxy:
         """
         result = {}
         response = None
-        for _ in range(0, 5):
+        for _ in range(0, 6):
             try:
                 response = requests.get(
                     api_addr,
