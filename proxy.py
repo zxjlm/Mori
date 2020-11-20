@@ -14,6 +14,8 @@ class Proxy:
     @staticmethod
     def test_api(proxies):
         url = Proxy.strict_proxy if Proxy.strict_proxy else 'https://www.baidu.com/'
+        if url == 'skip':
+            return True
         resp = requests.get(url, proxies=proxies, timeout=15)
         return resp and resp.status_code == 200
 

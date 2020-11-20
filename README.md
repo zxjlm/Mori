@@ -17,14 +17,15 @@ Mori 是一个用来检测 api 各种属性的脚本。
 - [x] 拆分文件,简化代码 -> 初步完成
 - [x] 完善案例
 - [ ] 添加 test
-- [x] 兼容反反爬虫方法
-- [x] 扩展 proxy 调用方法
+- [x] 兼容反反爬虫方法 [antispider参数](#参数说明)
+- [x] 扩展 proxy 调用方法 [proxy参数](#参数说明)
 - [x] 添加强校验模式
-- [x] 添加发送邮件选项
+- [x] 添加发送邮件选项 [--email](#关于-config.py-文件)
 - [x] 特化代理
 - [x] 添加 traceback
 - [x] 添加注释
 - [ ] 对 --verbose 输出上色
+- [x] 对代理进行校验 [strict_proxy参数](#参数说明)
 
 ![email.PNG](https://i.loli.net/2020/11/06/1uxYtDOUyAWdkEa.png)
 
@@ -72,7 +73,7 @@ optional arguments:
 
 ## 关于 apis.json 文件
 
-所有的待搜索 api 都放在一个 json 文件中, 脚本会默认调用 apis.jsonm 但是可以通过 **--json** 来指定另外的文件。
+所有的待搜索 api 都放在一个 json 文件中, 脚本会默认调用 apis.json 但是可以通过 **--json** 来指定另外的文件。
 
 画风如下。
 
@@ -103,6 +104,9 @@ optional arguments:
 - proxy(str,optional) : 支持使用代理.调用方法如下：
   - 字符串的内容为代理池的接口地址,形如:_"http://proxy-api.com"_  
     返回代理(response.text)的格式,形如: _"http://\*.\*.\*.\*:\*"_
+- strict_proxy(str,optional): 代理校验网站,仅在proxy有配置的情况下有效
+  - 默认情况下，代理会通过百度( _"http://www.baidu.com"_ )进行可用性校验.校验的网站可以通过修改该参数改变.
+  - 可以将值设为 _'skip'_ 跳过校验
 - decrypt(str,optional) :  
   外装 json 解析函数,值为文件名(如:mori_decrypt),详见[关于 **加密的** json 的解析](#关于加密的-json-的解析)
 - antispider(str,optional) :  
