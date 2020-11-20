@@ -20,7 +20,7 @@ Mori 是一个用来检测 api 各种属性的脚本。
 - [x] 兼容反反爬虫方法 [antispider参数](#参数说明)
 - [x] 扩展 proxy 调用方法 [proxy参数](#参数说明)
 - [x] 添加强校验模式
-- [x] 添加发送邮件选项 [--email](#关于-config.py-文件)
+- [x] 添加发送邮件选项 [--email](#关于-configpy-文件)
 - [x] 特化代理
 - [x] 添加 traceback
 - [x] 添加注释
