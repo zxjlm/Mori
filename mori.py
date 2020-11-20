@@ -186,7 +186,7 @@ def get_response(request_future, site_data):
     return response, error_context, exception_text, check_results, check_result, traceback, resp_text
 
 
-def mori(site_datas, result_printer, timeout) -> list:
+def mori(site_datas, result_printer, timeout, use_proxy) -> list:
     """
     主处理函数
     """
@@ -198,19 +198,19 @@ def mori(site_datas, result_printer, timeout) -> list:
     session = MoriFuturesSession(
         max_workers=max_workers, session=requests.Session())
 
-    results_total, error_text, exception_text, check_result, check_results = [], '', '', 'Unknown', {}
+    results_total = []
 
     for site_data in track(site_datas, description="Preparing..."):
+
         headers = {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:55.0) Gecko/20100101 Firefox/55.0',
         }
 
-        if site_data.get('proxy'):
-            Proxy.set_proxy_url(site_data['proxy'], site_data.get('strict_proxy'))
-
         if site_data.get('headers'):
             if isinstance(site_data.get('headers'), dict):
                 headers.update(site_data.get('headers'))
+
+        Proxy.set_proxy_url(site_data.get('proxy'), site_data.get('strict_proxy'), use_proxy, headers)
 
         if site_data.get('antispider') and site_data.get('data'):
             try:
@@ -249,6 +249,7 @@ def mori(site_datas, result_printer, timeout) -> list:
 
     for site_data in site_datas:
         traceback, r, resp_text = None, None, ''
+        error_text, exception_text, check_result, check_results = '', '', 'Unknown', {}
         try:
             if site_data.get('single'):
                 check_result = 'Damage'
@@ -401,6 +402,10 @@ def main():
                         action="store_false", dest="print_invalid", default=False,
                         help="Output api(s) that was invalid."
                         )
+    parser.add_argument("--no-proxy", default=True,
+                        action="store_false", dest="use_proxy",
+                        help="Use proxy.Proxy should define in config.py"
+                        )
     parser.add_argument("--timeout",
                         action="store", metavar='TIMEOUT',
                         dest="timeout", type=timeout_check, default=None,
@@ -442,7 +447,7 @@ def main():
 
         # start = time.perf_counter()
         # for _ in range(20):
-        results = mori(apis, result_printer, timeout=args.timeout or 30)
+        results = mori(apis, result_printer, timeout=args.timeout or 30, use_proxy=args.use_proxy)
         # use_time = time.perf_counter() - start
         # print('total_use_time:{}'.format(use_time))
 
