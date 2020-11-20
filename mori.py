@@ -6,6 +6,8 @@
 @time   : 2020-11-17 19:23:27
 @description: None
 """
+from concurrent.futures._base import ALL_COMPLETED, wait
+from concurrent.futures.thread import ThreadPoolExecutor
 
 import requests
 import json
@@ -23,35 +25,6 @@ from rich.progress import track
 
 __version__ = 'v0.7'
 module_name = "Mori Kokoro"
-
-
-class MoriFuturesSession(FuturesSession):
-    """
-    自定义的FuturesSession类，主要是重写了request函数，使其具有统计链接请求时间的功能
-    """
-
-    def request(self, method, url, hooks=None, *args, **kwargs):
-        """
-        重写的request函数，添加hooks
-        """
-        if hooks is None:
-            hooks = {}
-        start = time.monotonic()
-
-        def response_time(resp, *args_sub, **kwargs_sub):
-            """
-            计算准确的请求时间
-            """
-            _, _ = args_sub, kwargs_sub
-            resp.elapsed = time.monotonic() - start
-            return
-
-        hooks['response'] = [response_time]
-
-        return super(MoriFuturesSession, self).request(method,
-                                                       url,
-                                                       hooks=hooks,
-                                                       *args, **kwargs)
 
 
 def regex_checker(regex, resp_json, exception=None):
@@ -109,20 +82,31 @@ def data_render(apis):
             coloring(apis[idx]['data'])
 
 
-def get_response(request_future, site_data):
+def get_response(session, site_data, headers, timeout, proxies):
     """
     对response进行初步处理
     """
-    response = None
     check_result = 'Damage'
     check_results = {}
     traceback = None
     resp_text = ''
+    exception_text = ''
+    error_context = ''
+    response = None
 
     try:
-        response = request_future.result()
-        exception_text = getattr(response, 'exceptions', None)
-        error_context = getattr(response, 'error_context', None)
+        if site_data.get('data'):
+            if re.search(r'application.json', headers.get('Content-Type', '')):
+                response = session.post(
+                    site_data['url'], json=site_data['data'], headers=headers, timeout=timeout, proxies=proxies,
+                    allow_redirects=True)
+            else:
+                response = session.post(
+                    site_data['url'], data=site_data['data'], headers=headers, timeout=timeout, proxies=proxies,
+                    allow_redirects=True)
+        else:
+            response = session.get(
+                site_data['url'], headers=headers, timeout=timeout, proxies=proxies)
 
         if response:
             resp_text = response.text
@@ -186,21 +170,13 @@ def get_response(request_future, site_data):
     return response, error_context, exception_text, check_results, check_result, traceback, resp_text
 
 
-def mori(site_datas, result_printer, timeout, use_proxy) -> list:
+def processor(site_data, timeout, use_proxy, session):
     """
-    主处理函数
+    处理
     """
-    if len(site_datas) >= 20:
-        max_workers = 20
-    else:
-        max_workers = len(site_datas)
-
-    session = MoriFuturesSession(
-        max_workers=max_workers, session=requests.Session())
-
-    results_total = []
-
-    for site_data in track(site_datas, description="Preparing..."):
+    for _ in range(6):
+        traceback, r, resp_text = None, None, ''
+        error_text, exception_text, check_result, check_results = '', '', 'Unknown', {}
 
         headers = {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:55.0) Gecko/20100101 Firefox/55.0',
@@ -221,35 +197,18 @@ def mori(site_datas, result_printer, timeout, use_proxy) -> list:
                     site_data['data'], headers).processor()
             except Exception as _e:
                 site_data['single'] = True
-                site_data['error_text'] = 'antispider failed'
                 site_data['exception_text'] = _e
                 site_data['traceback'] = Traceback()
-                continue
+                raise Exception('antispider failed')
 
         try:
             proxies = Proxy.get_proxy()
         except Exception as _e:
             site_data['single'] = True
-            site_data['error_text'] = 'all of six proxies can`t be used'
             site_data['exception_text'] = _e
             site_data['traceback'] = Traceback()
-            continue
-        if site_data.get('data'):
-            if re.search(r'application.json', headers.get('Content-Type', '')):
-                site_data["request_future"] = session.post(
-                    site_data['url'], json=site_data['data'], headers=headers, timeout=timeout, proxies=proxies,
-                    allow_redirects=True)
-            else:
-                site_data["request_future"] = session.post(
-                    site_data['url'], data=site_data['data'], headers=headers, timeout=timeout, proxies=proxies,
-                    allow_redirects=True)
-        else:
-            site_data["request_future"] = session.get(
-                site_data['url'], headers=headers, timeout=timeout, proxies=proxies)
+            raise Exception('all of six proxies can`t be used')
 
-    for site_data in site_datas:
-        traceback, r, resp_text = None, None, ''
-        error_text, exception_text, check_result, check_results = '', '', 'Unknown', {}
         try:
             if site_data.get('single'):
                 check_result = 'Damage'
@@ -257,10 +216,12 @@ def mori(site_datas, result_printer, timeout, use_proxy) -> list:
                 exception_text = site_data['exception_text']
                 traceback = site_data['traceback']
             else:
-                future = site_data["request_future"]
                 r, error_text, exception_text, check_results, check_result, traceback, resp_text = get_response(
-                    request_future=future,
-                    site_data=site_data)
+                    session,
+                    site_data,
+                    headers,
+                    timeout,
+                    proxies)
 
             result = {
                 'name': site_data['name'],
@@ -280,7 +241,7 @@ def mori(site_datas, result_printer, timeout, use_proxy) -> list:
 
             rel_result = dict(result.copy())
             rel_result['resp_text'] = resp_text
-
+            break
         except Exception as error:
             result = {
                 'name': site_data['name'],
@@ -296,7 +257,24 @@ def mori(site_datas, result_printer, timeout, use_proxy) -> list:
                 'check_results': check_results,
                 'remark': site_data.get('remark', '')
             }
-            rel_result = result.copy()
+            rel_result = dict(result.copy())
+
+    return result, rel_result
+
+
+def mori(site_datas, result_printer, timeout, use_proxy) -> list:
+    """
+    主处理函数
+    """
+    executor = ThreadPoolExecutor(max_workers=4)
+    tasks = [executor.submit(run_task_1, (condition)) for condition in ll]
+    wait(tasks, return_when=ALL_COMPLETED)
+
+    results_total = []
+
+    for site_data in track(site_datas, description="Preparing..."):
+        session = requests.Session()
+        result, rel_result = processor(site_data, timeout, use_proxy, session)
 
         results_total.append(rel_result)
         result_printer.printer(result)
@@ -391,7 +369,7 @@ def main():
                         help="Show all infomations of the apis in files."
                         )
     parser.add_argument("--json", "-j", metavar="JSON_FILE",
-                        dest="json_file", default=None,
+                        dest="json_file", type=str, nargs='+', default=None,
                         help="Load data from a local JSON file.")
     parser.add_argument("--email", "-e",
                         # metavar="EMAIL",
@@ -419,12 +397,15 @@ def main():
 
     console = Console()
 
-    file_path = args.json_file or './apis.json'
+    file_path_l = args.json_file or './apis.json'
+    apis = []
 
-    with open(file_path, 'r', encoding='utf-8') as f:
-        apis = json.load(f)
-    console.print(f'[green] read file {file_path} success~')
-    data_render(apis)
+    for file_path in file_path_l:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            apis_sub = json.load(f)
+        console.print(f'[green] read file {file_path} success~')
+        data_render(apis_sub)
+        apis += apis_sub
 
     if args.show_site_list:
 
