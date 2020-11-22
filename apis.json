@@ -58,6 +58,6 @@
       "Content-Type": "application/json",
       "accept": "application/json"
     },
-    "data": { "token": 1 }
+    "data": { "token": 0 }
   }
 ]

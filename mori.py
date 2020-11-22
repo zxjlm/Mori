@@ -21,10 +21,14 @@ from argparse import ArgumentParser, RawDescriptionHelpFormatter
 from printer import ResultPrinter
 from reporter import Reporter
 from proxy import Proxy
-from rich.progress import track
 
 __version__ = 'v0.7'
 module_name = "Mori Kokoro"
+
+
+# progress = Progress(
+# TextColumn("[bold blue]{task.fields[site]}", justify="right")
+# )
 
 
 def regex_checker(regex, resp_json, exception=None):
@@ -170,10 +174,13 @@ def get_response(session, site_data, headers, timeout, proxies):
     return response, error_context, exception_text, check_results, check_result, traceback, resp_text
 
 
-def processor(site_data, timeout, use_proxy, session):
+def processor(site_data, timeout, use_proxy, result_printer):
     """
     处理
     """
+    rel_result, result = {}, {}
+    session = requests.Session()
+
     for _ in range(6):
         traceback, r, resp_text = None, None, ''
         error_text, exception_text, check_result, check_results = '', '', 'Unknown', {}
@@ -230,7 +237,7 @@ def processor(site_data, timeout, use_proxy, session):
                 'resp_text': resp_text if len(
                     resp_text) < 500 else 'too long, and you can add --xls to see detail in *.xls file',
                 'status_code': r and r.status_code,
-                'time(s)': r.elapsed if r else -1,
+                'time(s)': float(r.elapsed.total_seconds()) if r else -1.,
                 'error_text': error_text,
                 'expection_text': exception_text,
                 'check_result': check_result,
@@ -250,7 +257,7 @@ def processor(site_data, timeout, use_proxy, session):
                 'resp_text': resp_text if len(
                     resp_text) < 500 else 'too long, and you can add --xls to see detail in *.xls file',
                 'status_code': r and r.status_code,
-                'time(s)': r.elapsed if r else -1,
+                'time(s)': float(r.elapsed.total_seconds()) if r else -1.,
                 'error_text': error or 'site handler error',
                 'check_result': check_result,
                 'traceback': Traceback(),
@@ -259,25 +266,24 @@ def processor(site_data, timeout, use_proxy, session):
             }
             rel_result = dict(result.copy())
 
-    return result, rel_result
+    result_printer.printer(result)
+
+    return rel_result
 
 
 def mori(site_datas, result_printer, timeout, use_proxy) -> list:
     """
     主处理函数
     """
-    executor = ThreadPoolExecutor(max_workers=4)
-    tasks = [executor.submit(run_task_1, (condition)) for condition in ll]
-    wait(tasks, return_when=ALL_COMPLETED)
+    tasks = []
+    with ThreadPoolExecutor(max_workers=len(site_datas) if len(site_datas) < 20 else 20) as pool:
+        for site_data in site_datas:
+            # task_id = progress.add_task('Scanning', site=site_data['name'], start=False)
+            task = pool.submit(processor, site_data, timeout, use_proxy, result_printer)
+            tasks.append(task)
+    # wait(tasks, return_when=ALL_COMPLETED)
 
-    results_total = []
-
-    for site_data in track(site_datas, description="Preparing..."):
-        session = requests.Session()
-        result, rel_result = processor(site_data, timeout, use_proxy, session)
-
-        results_total.append(rel_result)
-        result_printer.printer(result)
+    results_total = [getattr(foo, '_result') for foo in tasks]
 
     return results_total
 
@@ -397,7 +403,7 @@ def main():
 
     console = Console()
 
-    file_path_l = args.json_file or './apis.json'
+    file_path_l = args.json_file or ['./apis.json']
     apis = []
 
     for file_path in file_path_l:
