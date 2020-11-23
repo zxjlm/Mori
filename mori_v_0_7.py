@@ -6,8 +6,6 @@
 @time   : 2020-11-17 19:23:27
 @description: None
 """
-from concurrent.futures._base import ALL_COMPLETED, wait
-from concurrent.futures.thread import ThreadPoolExecutor
 
 import requests
 import json
@@ -15,21 +13,50 @@ import re
 from requests_futures.sessions import FuturesSession
 import time
 from rich.console import Console
-from rich.progress import Progress, TaskID, TextColumn
 from rich.traceback import Traceback
 import platform
 from argparse import ArgumentParser, RawDescriptionHelpFormatter
 from printer import ResultPrinter
 from reporter import Reporter
 from proxy import Proxy
+from rich.progress import track
 
 __version__ = 'v0.7'
 module_name = "Mori Kokoro"
 
 
+class MoriFuturesSession(FuturesSession):
+    """
+    自定义的FuturesSession类，主要是重写了request函数，使其具有统计链接请求时间的功能
+    """
+
+    def request(self, method, url, hooks=None, *args, **kwargs):
+        """
+        重写的request函数，添加hooks
+        """
+        if hooks is None:
+            hooks = {}
+        start = time.monotonic()
+
+        def response_time(resp, *args_sub, **kwargs_sub):
+            """
+            计算准确的请求时间
+            """
+            _, _ = args_sub, kwargs_sub
+            resp.elapsed = time.monotonic() - start
+            return
+
+        hooks['response'] = [response_time]
+
+        return super(MoriFuturesSession, self).request(method,
+                                                       url,
+                                                       hooks=hooks,
+                                                       *args, **kwargs)
+
+
 def regex_checker(regex, resp_json, exception=None):
     """
-    调用检查regex的方法，并且进行后续的包装处理s
+    调用检查regex的方法，并且进行后续的包装处理
     """
     try:
         error = None
@@ -82,31 +109,20 @@ def data_render(apis):
             coloring(apis[idx]['data'])
 
 
-def get_response(session, site_data, headers, timeout, proxies):
+def get_response(request_future, site_data):
     """
     对response进行初步处理
     """
-    check_result = 'Unknown'
+    response = None
+    check_result = 'Damage'
     check_results = {}
     traceback = None
     resp_text = ''
-    exception_text = ''
-    error_context = ''
-    response = None
 
     try:
-        if site_data.get('data'):
-            if re.search(r'application.json', headers.get('Content-Type', '')):
-                response = session.post(
-                    site_data['url'], json=site_data['data'], headers=headers, timeout=timeout, proxies=proxies,
-                    allow_redirects=True)
-            else:
-                response = session.post(
-                    site_data['url'], data=site_data['data'], headers=headers, timeout=timeout, proxies=proxies,
-                    allow_redirects=True)
-        else:
-            response = session.get(
-                site_data['url'], headers=headers, timeout=timeout, proxies=proxies)
+        response = request_future.result()
+        exception_text = getattr(response, 'exceptions', None)
+        error_context = getattr(response, 'error_context', None)
 
         if response:
             resp_text = response.text
@@ -143,7 +159,6 @@ def get_response(session, site_data, headers, timeout, proxies):
 
                 if list(check_results.values()) != ['OK'] * len(check_results):
                     error_context = 'regex failed'
-                    check_result = 'Damage'
                 else:
                     check_result = 'OK'
 
@@ -171,19 +186,21 @@ def get_response(session, site_data, headers, timeout, proxies):
     return response, error_context, exception_text, check_results, check_result, traceback, resp_text
 
 
-def processor(site_data: dict, timeout: int, use_proxy, result_printer, task_id: TaskID, progress: Progress):
+def mori(site_datas, result_printer, timeout, use_proxy) -> list:
     """
-    处理
+    主处理函数
     """
-    rel_result, result = {}, {}
-    session = requests.Session()
-    max_retries = 5
-    monitor_id = progress.add_task(f'{site_data["name"]} (retry)', visible=False, total=max_retries)
-    # progress.update(monitor_id, advance=-max_retries)
-    for retries in range(max_retries):
+    if len(site_datas) >= 20:
+        max_workers = 20
+    else:
+        max_workers = len(site_datas)
 
-        traceback, r, resp_text = None, None, ''
-        error_text, exception_text, check_result, check_results = '', '', 'Unknown', {}
+    session = MoriFuturesSession(
+        max_workers=max_workers, session=requests.Session())
+
+    results_total = []
+
+    for site_data in track(site_datas, description="Preparing..."):
 
         headers = {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:55.0) Gecko/20100101 Firefox/55.0',
@@ -204,18 +221,35 @@ def processor(site_data: dict, timeout: int, use_proxy, result_printer, task_id:
                     site_data['data'], headers).processor()
             except Exception as _e:
                 site_data['single'] = True
+                site_data['error_text'] = 'antispider failed'
                 site_data['exception_text'] = _e
                 site_data['traceback'] = Traceback()
-                raise Exception('antispider failed')
+                continue
 
         try:
             proxies = Proxy.get_proxy()
         except Exception as _e:
             site_data['single'] = True
+            site_data['error_text'] = 'all of six proxies can`t be used'
             site_data['exception_text'] = _e
             site_data['traceback'] = Traceback()
-            raise Exception('all of six proxies can`t be used')
+            continue
+        if site_data.get('data'):
+            if re.search(r'application.json', headers.get('Content-Type', '')):
+                site_data["request_future"] = session.post(
+                    site_data['url'], json=site_data['data'], headers=headers, timeout=timeout, proxies=proxies,
+                    allow_redirects=True)
+            else:
+                site_data["request_future"] = session.post(
+                    site_data['url'], data=site_data['data'], headers=headers, timeout=timeout, proxies=proxies,
+                    allow_redirects=True)
+        else:
+            site_data["request_future"] = session.get(
+                site_data['url'], headers=headers, timeout=timeout, proxies=proxies)
 
+    for site_data in site_datas:
+        traceback, r, resp_text = None, None, ''
+        error_text, exception_text, check_result, check_results = '', '', 'Unknown', {}
         try:
             if site_data.get('single'):
                 check_result = 'Damage'
@@ -223,16 +257,10 @@ def processor(site_data: dict, timeout: int, use_proxy, result_printer, task_id:
                 exception_text = site_data['exception_text']
                 traceback = site_data['traceback']
             else:
+                future = site_data["request_future"]
                 r, error_text, exception_text, check_results, check_result, traceback, resp_text = get_response(
-                    session,
-                    site_data,
-                    headers,
-                    timeout,
-                    proxies)
-                if error_text and retries + 1 < max_retries:
-                    # progress.start_task(monitor_id)
-                    progress.update(monitor_id, advance=1, visible=True, total=max_retries, refresh=True)
-                    continue
+                    request_future=future,
+                    site_data=site_data)
 
             result = {
                 'name': site_data['name'],
@@ -241,7 +269,7 @@ def processor(site_data: dict, timeout: int, use_proxy, result_printer, task_id:
                 'resp_text': resp_text if len(
                     resp_text) < 500 else 'too long, and you can add --xls to see detail in *.xls file',
                 'status_code': r and r.status_code,
-                'time(s)': float(r.elapsed.total_seconds()) if r else -1.,
+                'time(s)': r.elapsed if r else -1,
                 'error_text': error_text,
                 'expection_text': exception_text,
                 'check_result': check_result,
@@ -252,7 +280,7 @@ def processor(site_data: dict, timeout: int, use_proxy, result_printer, task_id:
 
             rel_result = dict(result.copy())
             rel_result['resp_text'] = resp_text
-            break
+
         except Exception as error:
             result = {
                 'name': site_data['name'],
@@ -261,36 +289,17 @@ def processor(site_data: dict, timeout: int, use_proxy, result_printer, task_id:
                 'resp_text': resp_text if len(
                     resp_text) < 500 else 'too long, and you can add --xls to see detail in *.xls file',
                 'status_code': r and r.status_code,
-                'time(s)': float(r.elapsed.total_seconds()) if r else -1.,
+                'time(s)': r.elapsed if r else -1,
                 'error_text': error or 'site handler error',
                 'check_result': check_result,
                 'traceback': Traceback(),
                 'check_results': check_results,
                 'remark': site_data.get('remark', '')
             }
-            rel_result = dict(result.copy())
+            rel_result = result.copy()
 
-    progress.update(task_id, advance=1, refresh=True)
-    result_printer.printer(result)
-    progress.remove_task(monitor_id)
-
-    return rel_result
-
-
-def mori(site_datas, console, result_printer, timeout, use_proxy) -> list:
-    """
-    主处理函数
-    """
-    tasks = []
-    with Progress(console=console, auto_refresh=False) as progress:
-        with ThreadPoolExecutor(max_workers=len(site_datas) if len(site_datas) < 20 else 20) as pool:
-            task_id = progress.add_task('Processing ...', total=len(site_datas))
-            for site_data in site_datas:
-                task = pool.submit(processor, site_data, timeout, use_proxy, result_printer, task_id, progress)
-                tasks.append(task)
-    # wait(tasks, return_when=ALL_COMPLETED)
-
-    results_total = [getattr(foo, '_result') for foo in tasks]
+        results_total.append(rel_result)
+        result_printer.printer(result)
 
     return results_total
 
@@ -381,9 +390,9 @@ def main():
                         dest="show_site_list", default=False,
                         help="Show all infomations of the apis in files."
                         )
-    parser.add_argument("--json", "-j", metavar="JSON_FILES",
-                        dest="json_files", type=str, nargs='+', default=None,
-                        help="Load data from a local JSON file.Accept plural files.")
+    parser.add_argument("--json", "-j", metavar="JSON_FILE",
+                        dest="json_file", default=None,
+                        help="Load data from a local JSON file.")
     parser.add_argument("--email", "-e",
                         # metavar="EMAIL",
                         action="store_true",
@@ -401,7 +410,7 @@ def main():
                         action="store", metavar='TIMEOUT',
                         dest="timeout", type=timeout_check, default=None,
                         help="Time (in seconds) to wait for response to requests. "
-                             "Default timeout is 35s. "
+                             "Default timeout is 30s. "
                              "A longer timeout will be more likely to get results from slow sites. "
                              "On the other hand, this may cause a long delay to gather all results."
                         )
@@ -410,15 +419,12 @@ def main():
 
     console = Console()
 
-    file_path_l = args.json_files or ['./apis.json']
-    apis = []
+    file_path = args.json_file or './apis.json'
 
-    for file_path in file_path_l:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            apis_sub = json.load(f)
-        console.print(f'[green] read file {file_path} success~')
-        data_render(apis_sub)
-        apis += apis_sub
+    with open(file_path, 'r', encoding='utf-8') as f:
+        apis = json.load(f)
+    console.print(f'[green] read file {file_path} success~')
+    data_render(apis)
 
     if args.show_site_list:
 
@@ -440,8 +446,8 @@ def main():
             args.verbose, args.print_invalid, console)
 
         # start = time.perf_counter()
-        # for _ in range(20):s
-        results = mori(apis, console, result_printer, timeout=args.timeout or 35, use_proxy=args.use_proxy)
+        # for _ in range(20):
+        results = mori(apis, result_printer, timeout=args.timeout or 30, use_proxy=args.use_proxy)
         # use_time = time.perf_counter() - start
         # print('total_use_time:{}'.format(use_time))
 
