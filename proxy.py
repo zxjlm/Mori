@@ -30,7 +30,7 @@ class Proxy:
         请求接口，获取代理。 
         return 代理格式 "http://*.*.*.*:*"
         """
-        for _ in range(0, 6):
+        for _ in range(0, 5):
             try:
                 response = requests.get(
                     api_addr,

@@ -90,7 +90,7 @@ def get_response(session, site_data, headers, timeout, proxies):
     """
     对response进行初步处理
     """
-    check_result = 'Damage'
+    check_result = 'Unknown'
     check_results = {}
     traceback = None
     resp_text = ''
@@ -147,6 +147,7 @@ def get_response(session, site_data, headers, timeout, proxies):
 
                 if list(check_results.values()) != ['OK'] * len(check_results):
                     error_context = 'regex failed'
+                    check_result = 'Damage'
                 else:
                     check_result = 'OK'
 
@@ -181,7 +182,7 @@ def processor(site_data, timeout, use_proxy, result_printer):
     rel_result, result = {}, {}
     session = requests.Session()
 
-    for _ in range(6):
+    for retries in range(5):
         traceback, r, resp_text = None, None, ''
         error_text, exception_text, check_result, check_results = '', '', 'Unknown', {}
 
@@ -229,6 +230,8 @@ def processor(site_data, timeout, use_proxy, result_printer):
                     headers,
                     timeout,
                     proxies)
+                if error_text and retries < 4:
+                   continue
 
             result = {
                 'name': site_data['name'],
@@ -374,9 +377,9 @@ def main():
                         dest="show_site_list", default=False,
                         help="Show all infomations of the apis in files."
                         )
-    parser.add_argument("--json", "-j", metavar="JSON_FILE",
-                        dest="json_file", type=str, nargs='+', default=None,
-                        help="Load data from a local JSON file.")
+    parser.add_argument("--json", "-j", metavar="JSON_FILES",
+                        dest="json_files", type=str, nargs='+', default=None,
+                        help="Load data from a local JSON file.Accept plural files.")
     parser.add_argument("--email", "-e",
                         # metavar="EMAIL",
                         action="store_true",
@@ -394,7 +397,7 @@ def main():
                         action="store", metavar='TIMEOUT',
                         dest="timeout", type=timeout_check, default=None,
                         help="Time (in seconds) to wait for response to requests. "
-                             "Default timeout is 30s. "
+                             "Default timeout is 35s. "
                              "A longer timeout will be more likely to get results from slow sites. "
                              "On the other hand, this may cause a long delay to gather all results."
                         )
@@ -403,7 +406,7 @@ def main():
 
     console = Console()
 
-    file_path_l = args.json_file or ['./apis.json']
+    file_path_l = args.json_files or ['./apis.json']
     apis = []
 
     for file_path in file_path_l:
@@ -434,7 +437,7 @@ def main():
 
         # start = time.perf_counter()
         # for _ in range(20):
-        results = mori(apis, result_printer, timeout=args.timeout or 30, use_proxy=args.use_proxy)
+        results = mori(apis, result_printer, timeout=args.timeout or 35, use_proxy=args.use_proxy)
         # use_time = time.perf_counter() - start
         # print('total_use_time:{}'.format(use_time))
 
