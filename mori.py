@@ -15,6 +15,7 @@ import re
 from requests_futures.sessions import FuturesSession
 import time
 from rich.console import Console
+from rich.progress import Progress, TaskID, TextColumn
 from rich.traceback import Traceback
 import platform
 from argparse import ArgumentParser, RawDescriptionHelpFormatter
@@ -26,14 +27,9 @@ __version__ = 'v0.7'
 module_name = "Mori Kokoro"
 
 
-# progress = Progress(
-# TextColumn("[bold blue]{task.fields[site]}", justify="right")
-# )
-
-
 def regex_checker(regex, resp_json, exception=None):
     """
-    调用检查regex的方法，并且进行后续的包装处理
+    调用检查regex的方法，并且进行后续的包装处理s
     """
     try:
         error = None
@@ -175,14 +171,17 @@ def get_response(session, site_data, headers, timeout, proxies):
     return response, error_context, exception_text, check_results, check_result, traceback, resp_text
 
 
-def processor(site_data, timeout, use_proxy, result_printer):
+def processor(site_data: dict, timeout: int, use_proxy, result_printer, task_id: TaskID, progress: Progress):
     """
     处理
     """
     rel_result, result = {}, {}
     session = requests.Session()
+    max_retries = 5
+    monitor_id = progress.add_task(f'{site_data["name"]} (retry)', visible=False, total=max_retries)
+    # progress.update(monitor_id, advance=-max_retries)
+    for retries in range(max_retries):
 
-    for retries in range(5):
         traceback, r, resp_text = None, None, ''
         error_text, exception_text, check_result, check_results = '', '', 'Unknown', {}
 
@@ -230,8 +229,10 @@ def processor(site_data, timeout, use_proxy, result_printer):
                     headers,
                     timeout,
                     proxies)
-                if error_text and retries < 4:
-                   continue
+                if error_text and retries + 1 < max_retries:
+                    # progress.start_task(monitor_id)
+                    progress.update(monitor_id, advance=1, visible=True, total=max_retries, refresh=True)
+                    continue
 
             result = {
                 'name': site_data['name'],
@@ -269,21 +270,24 @@ def processor(site_data, timeout, use_proxy, result_printer):
             }
             rel_result = dict(result.copy())
 
+    progress.update(task_id, advance=1, refresh=True)
     result_printer.printer(result)
+    progress.remove_task(monitor_id)
 
     return rel_result
 
 
-def mori(site_datas, result_printer, timeout, use_proxy) -> list:
+def mori(site_datas, console, result_printer, timeout, use_proxy) -> list:
     """
     主处理函数
     """
     tasks = []
-    with ThreadPoolExecutor(max_workers=len(site_datas) if len(site_datas) < 20 else 20) as pool:
-        for site_data in site_datas:
-            # task_id = progress.add_task('Scanning', site=site_data['name'], start=False)
-            task = pool.submit(processor, site_data, timeout, use_proxy, result_printer)
-            tasks.append(task)
+    with Progress(console=console, auto_refresh=False) as progress:
+        with ThreadPoolExecutor(max_workers=len(site_datas) if len(site_datas) < 20 else 20) as pool:
+            task_id = progress.add_task('Processing ...', total=len(site_datas))
+            for site_data in site_datas:
+                task = pool.submit(processor, site_data, timeout, use_proxy, result_printer, task_id, progress)
+                tasks.append(task)
     # wait(tasks, return_when=ALL_COMPLETED)
 
     results_total = [getattr(foo, '_result') for foo in tasks]
@@ -436,8 +440,8 @@ def main():
             args.verbose, args.print_invalid, console)
 
         # start = time.perf_counter()
-        # for _ in range(20):
-        results = mori(apis, result_printer, timeout=args.timeout or 35, use_proxy=args.use_proxy)
+        # for _ in range(20):s
+        results = mori(apis, console, result_printer, timeout=args.timeout or 35, use_proxy=args.use_proxy)
         # use_time = time.perf_counter() - start
         # print('total_use_time:{}'.format(use_time))
 
