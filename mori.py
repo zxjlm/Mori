@@ -230,8 +230,8 @@ def processor(site_data: dict, timeout: int, use_proxy, result_printer, task_id:
                     timeout,
                     proxies)
                 if error_text and retries + 1 < max_retries:
-                    # progress.start_task(monitor_id)
-                    progress.update(monitor_id, advance=1, visible=True, total=max_retries, refresh=True)
+                    # progress.start_task(monitor_id)s
+                    progress.update(monitor_id, advance=1, visible=True, refresh=True)
                     continue
 
             result = {
