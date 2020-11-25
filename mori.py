@@ -133,7 +133,7 @@ def get_response(session, site_data, headers, timeout, proxies):
                 # 不排除这种提取方法会引发新一轮的错误，再找到更好的提取方法之前，暂且先这样
                 resp_text = re.sub(r'[\s\n]', '', resp_text).replace('null', '"placeholder"')
                 resp_json = json.loads(
-                    re.match(r'(")?({.*})(?(1)"|$)', resp_text).group(0))
+                    re.search(r'(")?({.*})(?(1)")', resp_text).group(0))
                 if isinstance(resp_json, str):
                     # 针对 "/"../"" 类做出特殊优化
                     resp_json = json.loads(resp_json)
