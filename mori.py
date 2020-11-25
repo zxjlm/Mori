@@ -130,9 +130,13 @@ def get_response(session, site_data, headers, timeout, proxies):
         if resp_text:
             try:
                 # 有些键可能值是null,这种实际上是可以通过判断逻辑的,所以使用占位符(placeholder)来解除null
-                resp_text = re.sub(r'\s', '', resp_text)
+                # 不排除这种提取方法会引发新一轮的错误，再找到更好的提取方法之前，暂且先这样
+                resp_text = re.sub(r'[\s\n]', '', resp_text).replace('null', '"placeholder"')
                 resp_json = json.loads(
-                    re.search('({.*})', resp_text.replace('\\', '').replace('null', '"placeholder"')).group(1))
+                    re.match(r'(")?({.*})(?(1)"|$)', resp_text).group(0))
+                if isinstance(resp_json, str):
+                    # 针对 "/"../"" 类做出特殊优化
+                    resp_json = json.loads(resp_json)
             except Exception as _e:
                 traceback = Traceback()
                 error_context = 'response data not json format'
