@@ -130,6 +130,7 @@ def get_response(session, site_data, headers, timeout, proxies):
         if resp_text:
             try:
                 # 有些键可能值是null,这种实际上是可以通过判断逻辑的,所以使用占位符(placeholder)来解除null
+                resp_text = re.sub(r'\s', '', resp_text)
                 resp_json = json.loads(
                     re.search('({.*})', resp_text.replace('\\', '').replace('null', '"placeholder"')).group(1))
             except Exception as _e:
