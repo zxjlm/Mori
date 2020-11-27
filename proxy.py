@@ -68,7 +68,9 @@ class Proxy:
             #                   site_data['proxy']).group(1)
             #     proxies = {"http": proxy, "https": proxy}
             # else:
+            # print('start to get proxy')
             proxies = Proxy.get_api(Proxy.proxy_url)
+            # print(f'get over {proxies}')
             if not proxies:
                 raise Exception('failed to get proxies')
             Proxy.proxies = proxies
