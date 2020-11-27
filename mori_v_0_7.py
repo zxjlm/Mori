@@ -16,6 +16,8 @@ from rich.console import Console
 from rich.traceback import Traceback
 import platform
 from argparse import ArgumentParser, RawDescriptionHelpFormatter
+
+from mori import regex_checker, data_render
 from printer import ResultPrinter
 from reporter import Reporter
 from proxy import Proxy
@@ -54,59 +56,7 @@ class MoriFuturesSession(FuturesSession):
                                                        *args, **kwargs)
 
 
-def regex_checker(regex, resp_json, exception=None):
-    """
-    调用检查regex的方法，并且进行后续的包装处理
-    """
-    try:
-        error = None
-        res = regex_checker_recur(regex.split('->'), resp_json)
-    except TypeError as ty_e:
-        error = f'can`t match , {ty_e}'
-        res = None
-    except Exception as _e:
-        res = None
-        error = _e
-    if exception:
-        return 'OK' if res == exception else error
-    else:
-        return 'OK' if res else error
 
-
-def regex_checker_recur(regexs, resp_json):
-    """
-    递归遍历regex
-    """
-    is_index = re.search(r'\$(\d+)\$', regexs[0])
-    if len(regexs) == 1:
-        return resp_json[regexs[0]]
-    elif is_index:
-        return regex_checker_recur(regexs[1:], resp_json[int(is_index.group(1))])
-    else:
-        return regex_checker_recur(regexs[1:], resp_json[regexs[0]])
-
-
-def data_render(apis):
-    """
-    渲染data数据，将{{*}}包裹的数据具体化
-    """
-
-    def coloring(api_sub):
-        """
-        递归渲染
-        """
-        for key, value in api_sub.items():
-            if isinstance(value, list):
-                for val in value:
-                    coloring(val)
-            if isinstance(value, dict):
-                coloring(value)
-            if value == "{{time}}":
-                api_sub[key] = str(int(time.time() * 1000))
-
-    for idx, api in enumerate(apis):
-        if "data" in api.keys():
-            coloring(apis[idx]['data'])
 
 
 def get_response(request_future, site_data):
