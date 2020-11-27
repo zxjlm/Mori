@@ -6,16 +6,14 @@
 @time   : 2020-11-17 19:23:27
 @description: None
 """
-from concurrent.futures._base import ALL_COMPLETED, wait
 from concurrent.futures.thread import ThreadPoolExecutor
 
 import requests
 import json
 import re
-from requests_futures.sessions import FuturesSession
 import time
 from rich.console import Console
-from rich.progress import Progress, TaskID, TextColumn
+from rich.progress import Progress, TaskID
 from rich.traceback import Traceback
 import platform
 from argparse import ArgumentParser, RawDescriptionHelpFormatter
@@ -108,10 +106,10 @@ def get_response(session, site_data, headers, timeout, proxies):
             response = session.get(
                 site_data['url'], headers=headers, timeout=timeout, proxies=proxies)
 
-        if response:
+        if response and response.text:
             resp_text = response.text
         else:
-            return
+            return response, 'request failed or get empty response', exception_text, check_results, 'Damage', traceback, resp_text
 
         resp_json = {}
 
@@ -245,7 +243,7 @@ def processor(site_data: dict, timeout: int, use_proxy, result_printer, task_id:
                 'base_url': site_data.get('base_url', ''),
                 'resp_text': resp_text if len(
                     resp_text) < 500 else 'too long, and you can add --xls to see detail in *.xls file',
-                'status_code': r and r.status_code,
+                'status_code': getattr(r, 'status_code', 'failed'),
                 'time(s)': float(r.elapsed.total_seconds()) if r else -1.,
                 'error_text': error_text,
                 'expection_text': exception_text,
@@ -265,7 +263,7 @@ def processor(site_data: dict, timeout: int, use_proxy, result_printer, task_id:
                 'base_url': site_data.get('base_url', ''),
                 'resp_text': resp_text if len(
                     resp_text) < 500 else 'too long, and you can add --xls to see detail in *.xls file',
-                'status_code': r and r.status_code,
+                'status_code': getattr(r, 'status_code', 'failed'),
                 'time(s)': float(r.elapsed.total_seconds()) if r else -1.,
                 'error_text': error or 'site handler error',
                 'check_result': check_result,
@@ -288,7 +286,7 @@ def mori(site_datas, console, result_printer, timeout, use_proxy) -> list:
     """
     tasks = []
     with Progress(console=console, auto_refresh=False) as progress:
-        with ThreadPoolExecutor(max_workers=len(site_datas) if len(site_datas) < 20 else 20) as pool:
+        with ThreadPoolExecutor(max_workers=len(site_datas) if len(site_datas) <= 20 else 20) as pool:
             task_id = progress.add_task('Processing ...', total=len(site_datas))
             for site_data in site_datas:
                 task = pool.submit(processor, site_data, timeout, use_proxy, result_printer, task_id, progress)
