@@ -1,7 +1,28 @@
+import string
 from dataclasses import dataclass
 from rich.segment import Segment
 from rich.style import Style
 from rich.console import Console, ConsoleOptions, RenderResult
+
+
+def str_count(s: str) -> int:
+    """
+    统计字符串
+    """
+    count_en, count_zh, count_pu = 0, 0, 0
+    s_len = len(s)
+    for c in s:
+        if c in string.ascii_letters or c.isdigit() or c.isspace():
+            count_en += 1
+        elif c.isalpha():
+            count_zh += 1
+        else:
+            count_pu += 1
+    total_chars = count_en + count_pu + count_zh
+    if total_chars == s_len:
+        return (count_pu + count_en) + count_zh * 2
+    else:
+        return len(s) * 2
 
 
 @dataclass
@@ -18,13 +39,16 @@ class SimpleResult:
         yield Segment(self.name, Style(color="magenta"))
         yield Segment(':    ')
         yield Segment(self.url, Style(color="green"))
-        yield Segment(' ,   ')
+        if len(self.url) > 140:
+            yield Segment('\n' + ' ' * str_count(self.name))
+        else:
+            yield Segment(' ,   ')
         yield Segment(self.result, Style(color="cyan"))
         yield Segment(' ,   ')
         yield Segment(str(round(self.time, 4)) + ' s', Style(color="blue" if self.time < 5 else 'red'))
         yield Segment('\n')
         if self.error_text and self.error_text != 'status_code is 200':
-            yield Segment(f'\t\t error: {self.error_text}\n', Style(color="red"))
+            yield Segment(' ' * str_count(self.name) + f'Error: {self.error_text}\n', Style(color="red"))
 
 
 class ResultPrinter:
