@@ -7,6 +7,7 @@
 @description: None
 """
 from concurrent.futures.thread import ThreadPoolExecutor
+from functools import wraps
 
 import requests
 import json
@@ -174,14 +175,16 @@ def get_response(session, site_data, headers, timeout, proxies):
     return response, error_context, exception_text, check_results, check_result, traceback, resp_text
 
 
-def processor(site_data: dict, timeout: int, use_proxy, result_printer, task_id: TaskID, progress: Progress):
+def processor(site_data: dict, timeout: int, use_proxy: bool, result_printer: ResultPrinter, task_id: TaskID,
+              progress: Progress) -> list:
     """
     处理
     """
-    rel_result, result = {}, {}
+    rel_result, result, monitor_id = {}, {}, None
     session = requests.Session()
     max_retries = 5
-    monitor_id = progress.add_task(f'{site_data["name"]} (retry)', visible=False, total=max_retries)
+    if progress:
+        monitor_id = progress.add_task(f'{site_data["name"]} (retry)', visible=False, total=max_retries)
     # progress.update(monitor_id, advance=-max_retries)
     for retries in range(max_retries):
 
@@ -233,8 +236,8 @@ def processor(site_data: dict, timeout: int, use_proxy, result_printer, task_id:
                     timeout,
                     proxies)
                 if error_text and retries + 1 < max_retries:
-                    # progress.start_task(monitor_id)s
-                    progress.update(monitor_id, advance=1, visible=True, refresh=True)
+                    if progress:
+                        progress.update(monitor_id, advance=1, visible=True, refresh=True)
                     continue
 
             result = {
@@ -273,24 +276,39 @@ def processor(site_data: dict, timeout: int, use_proxy, result_printer, task_id:
             }
             rel_result = dict(result.copy())
 
-    progress.update(task_id, advance=1, refresh=True)
-    result_printer.printer(result)
-    progress.remove_task(monitor_id)
+    if result_printer:
+        progress.update(task_id, advance=1, refresh=True)
+        result_printer.printer(result)
+        progress.remove_task(monitor_id)
 
     return rel_result
 
 
-def mori(site_datas, console, result_printer, timeout, use_proxy) -> list:
+def diy_rich_progress(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        console = kwargs.pop('console')
+        if console:
+            with Progress(console=console, auto_refresh=False) as progress:
+                results = func(progress, *args, **kwargs)
+        else:
+            results = func(None, *args, **kwargs)
+        return results
+
+    return wrapper
+
+
+@diy_rich_progress
+def mori(progress, site_datas, result_printer, timeout, use_proxy) -> list:
     """
     主处理函数
     """
     tasks = []
-    with Progress(console=console, auto_refresh=False) as progress:
-        with ThreadPoolExecutor(max_workers=len(site_datas) if len(site_datas) <= 20 else 20) as pool:
-            task_id = progress.add_task('Processing ...', total=len(site_datas))
-            for site_data in site_datas:
-                task = pool.submit(processor, site_data, timeout, use_proxy, result_printer, task_id, progress)
-                tasks.append(task)
+    with ThreadPoolExecutor(max_workers=len(site_datas) if len(site_datas) <= 20 else 20) as pool:
+        task_id = progress.add_task('Processing ...', total=len(site_datas))
+        for site_data in site_datas:
+            task = pool.submit(processor, site_data, timeout, use_proxy, result_printer, task_id, progress)
+            tasks.append(task)
     # wait(tasks, return_when=ALL_COMPLETED)
 
     results_total = [getattr(foo, '_result') for foo in tasks]
@@ -443,8 +461,9 @@ def main():
             args.verbose, args.print_invalid, console)
 
         # start = time.perf_counter()
-        # for _ in range(20):s
-        results = mori(apis, console, result_printer, timeout=args.timeout or 35, use_proxy=args.use_proxy)
+        # for _ in range(20):
+        results = mori(site_datas=apis, console=console, result_printer=result_printer, timeout=args.timeout or 35,
+                       use_proxy=args.use_proxy)
         # use_time = time.perf_counter() - start
         # print('total_use_time:{}'.format(use_time))
 
