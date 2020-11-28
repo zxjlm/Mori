@@ -4,7 +4,7 @@ import logging
 
 class Proxy:
     """
-    获取代理
+    handle proxy
     """
     proxy_url = ''
     proxies = None
@@ -27,8 +27,13 @@ class Proxy:
     @staticmethod
     def get_api(api_addr: str) -> dict:
         """
-        请求接口，获取代理。 
-        return 代理格式 "http://*.*.*.*:*"
+        get proxy from api.
+        api return format -- "http://*.*.*.*:*"
+        Args:s
+            api_addr: it should be define in json file.use "proxy" key, more info can be found in README.md.
+
+        Returns:
+            dictionary -- {"http":"http://*.*.*.*:*","https":"https://*.*.*.*:*"}
         """
         for _ in range(0, 5):
             try:
@@ -57,8 +62,10 @@ class Proxy:
 
     @staticmethod
     def get_proxy():
-        """
-        从接口获取代理
+        """s
+        get_proxy. pay attention to the static members of this class.
+        Returns:
+
         """
         proxies = None
         if Proxy.proxy_url and Proxy.use_proxy:
@@ -68,9 +75,7 @@ class Proxy:
             #                   site_data['proxy']).group(1)
             #     proxies = {"http": proxy, "https": proxy}
             # else:
-            # print('start to get proxy')
             proxies = Proxy.get_api(Proxy.proxy_url)
-            # print(f'get over {proxies}')
             if not proxies:
                 raise Exception('failed to get proxies')
             Proxy.proxies = proxies
@@ -80,7 +85,15 @@ class Proxy:
     @staticmethod
     def set_proxy_url(proxy_url, strict_proxy, use_proxy, headers):
         """
-        固定代理链接
+        like __init__()
+        Args:
+            proxy_url:
+            strict_proxy:
+            use_proxy:
+            headers:
+
+        Returns:
+
         """
         Proxy.proxy_url = proxy_url
         Proxy.strict_proxy = strict_proxy

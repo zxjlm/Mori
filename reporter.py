@@ -3,8 +3,19 @@ from io import BytesIO
 
 
 class Reporter:
+    """
+    Generate excel report and html tale report.
+
+    For better distinction between success and failed, we need use some style, such as red and black, bold and normal, and so on.
+    """
 
     def __init__(self, headers: list, results: list):
+        """
+
+        Args:
+            headers:
+            results:
+        """
         self.headers = headers
         self.results = results
         self.workbook = xlwt.Workbook(encoding='utf-8')
@@ -12,6 +23,13 @@ class Reporter:
         self.table = ''
 
     def generate_headers(self):
+        """
+        both excel and html table has the same header.
+        the value of header define when Reporter instance.
+        Returns:
+            None
+
+        """
         style = xlwt.XFStyle()
         font = xlwt.Font()
         font.name = 'Times New Roman'
@@ -21,6 +39,16 @@ class Reporter:
             self.worksheet.write(0, col, value, style)
 
     def row_writer(self, inx: int, result: dict):
+        """
+        generate each row.
+        Args:
+            inx: inx of this row.
+            result: value of this row.it`s a dictionary, keys can be found in function processor() in mori.py.
+
+        Returns:
+            None
+
+        """
         for col, header in enumerate(self.headers):
             style = xlwt.XFStyle()
             if result['check_result'] != 'OK':
@@ -37,6 +65,14 @@ class Reporter:
             self.worksheet.write(inx, col, result[header], style)
 
     def generate_excel(self, file_name):
+        """
+        literal meaning.
+        Args:
+            file_name:
+
+        Returns:
+
+        """
         self.generate_headers()
 
         for inx, foo in enumerate(self.results):
@@ -48,6 +84,11 @@ class Reporter:
         ...
 
     def generate_table(self):
+        """
+        literal meaning
+        Returns:
+
+        """
         th = ''
         for value in self.headers:
             if 'url' in value:
@@ -76,6 +117,15 @@ class Reporter:
         return f'<p>Mori Result</p><table style="border:1px solid">{thead}{tbody}</table>'
 
     def processor(self, is_stream: bool = False, file_name: str = 'report.xls'):
+        """
+
+        Args:
+            is_stream: if this value is True, we will use Bytes Stream to store the result.
+            file_name:
+
+        Returns:
+
+        """
         if is_stream:
             fs = BytesIO()
             self.generate_excel(fs)

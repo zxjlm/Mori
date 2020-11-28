@@ -7,7 +7,13 @@ from rich.console import Console, ConsoleOptions, RenderResult
 
 def str_count(s: str) -> int:
     """
-    统计字符串
+    for prettier output, i use this function to calculate the space of right.
+    Args:
+        s: string
+
+    Returns:
+        how many space should put on the right.
+
     """
     count_en, count_zh, count_pu = 0, 0, 0
     s_len = len(s)
@@ -27,6 +33,9 @@ def str_count(s: str) -> int:
 
 @dataclass
 class SimpleResult:
+    """
+    diy output of each dict.
+    """
     name: str
     url: str
     result: str
@@ -52,6 +61,9 @@ class SimpleResult:
 
 
 class ResultPrinter:
+    """
+    without the arg --verbose.
+    """
 
     def __init__(self, verbose, invalid, console):
         self.verbose = verbose
@@ -59,10 +71,26 @@ class ResultPrinter:
         self.console = console
 
     def printer(self, result: dict) -> None:
+        """
+        Result dictionary can be found in function processor() in mori.py.
+        Args:
+            result:
 
-        def map_simple_results(result):
-            sr = SimpleResult(result['name'], result['url'],
-                              result['check_result'], result['error_text'], result['time(s)'])
+        Returns:
+
+        """
+
+        def map_simple_results(sub_result):
+            """
+            
+            Args:
+                sub_result: 
+
+            Returns:
+
+            """
+            sr = SimpleResult(sub_result['name'], sub_result['url'],
+                              sub_result['check_result'], sub_result['error_text'], sub_result['time(s)'])
             return sr
 
         if self.invalid and result['check_result'] != 'OK':
