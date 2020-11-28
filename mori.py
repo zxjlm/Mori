@@ -8,6 +8,8 @@
 """
 from concurrent.futures.thread import ThreadPoolExecutor
 from functools import wraps
+from io import BytesIO
+from typing import Union
 
 import requests
 import json
@@ -26,9 +28,19 @@ __version__ = 'v0.7'
 module_name = "Mori Kokoro"
 
 
-def regex_checker(regex, resp_json, exception=None):
+def regex_checker(regex: str, resp_json: dict, exception=None) -> str:
     """
-    调用检查regex的方法，并且进行后续的包装处理s
+    ergodic the response tree,and try match the regex
+
+    Args:
+        regex:
+        resp_json:
+        exception:
+
+    Returns:
+        if match successfully,return 'OK'
+        else return 'Damage' or error text
+
     """
     try:
         error = None
@@ -45,27 +57,47 @@ def regex_checker(regex, resp_json, exception=None):
         return 'OK' if res else error
 
 
-def regex_checker_recur(regexs, resp_json):
+def regex_checker_recur(regex_s: list, resp_json: Union[list, dict]):
     """
-    递归遍历regex
+    get the leaf value of this regex path
+    Args:
+        regex_s:regex path
+        resp_json:
+
+    Returns:
+        if it can get string type value via regex path,return this string result
+        else raise Exception
+
     """
-    is_index = re.search(r'\$(\d+)\$', regexs[0])
-    if len(regexs) == 1:
-        return resp_json[regexs[0]]
+    is_index = re.search(r'\$(\d+)\$', regex_s[0])
+    if len(regex_s) == 1:
+        return resp_json[regex_s[0]]
     elif is_index:
-        return regex_checker_recur(regexs[1:], resp_json[int(is_index.group(1))])
+        return regex_checker_recur(regex_s[1:], resp_json[int(is_index.group(1))])
     else:
-        return regex_checker_recur(regexs[1:], resp_json[regexs[0]])
+        return regex_checker_recur(regex_s[1:], resp_json[regex_s[0]])
 
 
-def data_render(apis):
+def data_render(apis: list) -> None:
     """
-    渲染data数据，将{{*}}包裹的数据具体化
+    Render api data in apis,while find string warp by '{{ }}',it means there is a dynamic data, which need to be replace.
+
+    such as {{time}} means str(int(time.time() * 1000)),edit this function can diy your render way.
+    Args:
+        apis:
+
+    Returns:
+
     """
 
     def coloring(api_sub):
         """
-        递归渲染
+        render api recursively
+        Args:
+            api_sub: member of apis
+
+        Returns:
+
         """
         for key, value in api_sub.items():
             if isinstance(value, list):
@@ -81,9 +113,21 @@ def data_render(apis):
             coloring(apis[idx]['data'])
 
 
-def get_response(session, site_data, headers, timeout, proxies):
+def get_response(session: requests.Session, site_data: dict, headers: dict, timeout: int,
+                 proxies: Union[dict, None]) -> tuple:
     """
-    对response进行初步处理
+    request url and process response data,including decrypt(optional),check regex and so on.
+
+    also, it will handle with possible errors in the process
+    Args:
+        session: a instance of requests.Session()
+        site_data: a dictionary in site_data_list which read from json file
+        headers: header for requests
+        timeout: Time in seconds to wait before timing out request
+        proxies: a {'http':'http://*','https':'https://*'} like dict or None
+
+    Returns:
+
     """
     check_result = 'Unknown'
     check_results = {}
@@ -159,7 +203,6 @@ def get_response(session, site_data, headers, timeout, proxies):
         error_context = "HTTP Error"
         exception_text = str(errh)
     except requests.exceptions.ProxyError as errp:
-        # site_data['request_future']
         error_context = "Proxy Error"
         exception_text = str(errp)
     except requests.exceptions.ConnectionError as errc:
@@ -176,9 +219,31 @@ def get_response(session, site_data, headers, timeout, proxies):
 
 
 def processor(site_data: dict, timeout: int, use_proxy: bool, result_printer: ResultPrinter, task_id: TaskID,
-              progress: Progress) -> list:
+              progress: Progress) -> dict:
     """
-    处理
+    the main processor for mori.
+    Args:
+        site_data: a dictionary in site_data_list which read from json file
+        timeout: Time in seconds to wait before timing out request
+        use_proxy: not use proxy while this value is False. Of course, proxy field in the config file should have a value.
+        result_printer: when processor finish , result_printer will be invoked to output result.
+        task_id: it is id of main_progress, when processor finish, main_progress while step 1.
+        progress: main progress.
+
+    Returns:
+        Dictionary containing results from report.
+        'name': api name in configuration,
+        'url': api url in configuration,
+        'base_url': api base_url in configuration,
+        'resp_text': raw response.text from url, if length of resp_text > 500, it wont`t display on console, and you can add --xls to see detail in *.xls file.
+        'status_code': response status_code,
+        'time(s)': time in seconds spend on request,
+        'error_text': error_text,
+        'exception_text': exception_text,
+        'check_result': 'OK' , 'Damage' or 'Unknown'. Default is 'Unknown'.
+        'traceback': Instance of Traceback.
+        'check_results': check_results, each result of all regexes.
+        'remark': field hold on
     """
     rel_result, result, monitor_id = {}, {}, None
     session = requests.Session()
@@ -249,7 +314,7 @@ def processor(site_data: dict, timeout: int, use_proxy: bool, result_printer: Re
                 'status_code': getattr(r, 'status_code', 'failed'),
                 'time(s)': float(r.elapsed.total_seconds()) if r else -1.,
                 'error_text': error_text,
-                'expection_text': exception_text,
+                'exception_text': exception_text,
                 'check_result': check_result,
                 'traceback': traceback,
                 'check_results': check_results,
@@ -285,8 +350,28 @@ def processor(site_data: dict, timeout: int, use_proxy: bool, result_printer: Re
 
 
 def diy_rich_progress(func):
+    """
+    Decorator of rich`s progress.
+
+    It`s aim to decouple, but the effect is not ideal.
+    Args:
+        func:
+
+    Returns:
+
+    """
+
     @wraps(func)
     def wrapper(*args, **kwargs):
+        """
+        wrapper
+        Args:
+            *args: like mori
+            **kwargs:
+
+        Returns:
+
+        """
         console = kwargs.pop('console')
         if console:
             with Progress(console=console, auto_refresh=False) as progress:
@@ -299,14 +384,25 @@ def diy_rich_progress(func):
 
 
 @diy_rich_progress
-def mori(progress, site_datas, result_printer, timeout, use_proxy) -> list:
+def mori(progress: Progress, site_data_l: list, result_printer: ResultPrinter, timeout: int, use_proxy: bool) -> list:
     """
-    主处理函数
+    Run mori.
+    Args:
+        progress: Instance of rich.Progress() defined in decorator.
+        site_data_l: Read from json file.
+        result_printer: to print the result.
+        timeout: Defined in cmd arguments, default is 35s.
+        use_proxy: Defined in cmd arguments ( --no--proxy ).
+
+    Returns:
+        list-dict
+        content of the dictionary can be found in function processor().
+
     """
     tasks = []
-    with ThreadPoolExecutor(max_workers=len(site_datas) if len(site_datas) <= 20 else 20) as pool:
-        task_id = progress.add_task('Processing ...', total=len(site_datas))
-        for site_data in site_datas:
+    with ThreadPoolExecutor(max_workers=len(site_data_l) if len(site_data_l) <= 20 else 20) as pool:
+        task_id = progress.add_task('Processing ...', total=len(site_data_l))
+        for site_data in site_data_l:
             task = pool.submit(processor, site_data, timeout, use_proxy, result_printer, task_id, progress)
             tasks.append(task)
     # wait(tasks, return_when=ALL_COMPLETED)
@@ -318,7 +414,15 @@ def mori(progress, site_datas, result_printer, timeout, use_proxy) -> list:
 
 def timeout_check(value):
     """
-    检查是否超时
+    Checks timeout for validity.
+    Args:
+        value:
+
+    Returns:
+        Floating point number representing the time (in seconds) that should be
+    used for the timeout.
+
+    NOTE:  Will raise an exception if the timeout in invalid.
     """
     from argparse import ArgumentTypeError
 
@@ -332,10 +436,27 @@ def timeout_check(value):
     return timeout
 
 
-def send_mail(receivers: list, file_content, html, subject, mail_host, mail_user, mail_pass, mail_port=0):
+def send_mail(receivers: list, file_content: BytesIO, html: str, subject: str, mail_host: str, mail_user: str,
+              mail_pass: str, mail_port: int = 0):
     """
-    发送邮件
-    配置信息见README
+    Send mail.
+    Read necessary configuration from config.py.
+    The mean of each argument can be found in README.md.
+    Args:
+        receivers: a list in which store receivers` email address. such as [zxjlm233@gamil.com].
+        file_content: a BytesIO type. Because when send email, mori also send a CSV file of detail result.
+                    The content is not absolutely generated but read from the workbook of xlwt.
+        html: it`s a html5 table of CSV, for more intuitive display.
+        subject: literal meaning
+        mail_host: literal meaning
+        mail_user: username of mail sender.
+        mail_pass: password of mail senders.
+        mail_port: depend on your service.
+
+    Returns:
+        None
+
+    Notes: It`s a universal function can use in other scene by a little modification.
     """
     import smtplib
     from email.mime.text import MIMEText
@@ -375,7 +496,9 @@ def send_mail(receivers: list, file_content, html, subject, mail_host, mail_user
 
 def main():
     """
-    入口
+    Just main
+    Returns:
+
     """
 
     version_string = f"%(prog)s {__version__}\n" + \
@@ -400,16 +523,15 @@ def main():
     parser.add_argument("--show-all-site",
                         action="store_true",
                         dest="show_site_list", default=False,
-                        help="Show all infomations of the apis in files."
+                        help="Show all information of the apis in files."
                         )
     parser.add_argument("--json", "-j", metavar="JSON_FILES",
                         dest="json_files", type=str, nargs='+', default=None,
                         help="Load data from a local JSON file.Accept plural files.")
     parser.add_argument("--email", "-e",
-                        # metavar="EMAIL",
-                        action="store_true",
-                        dest="email", default=False,
-                        help="Send email to mailboxes in the file 'config.py'.")
+                        metavar="EMAIL_ADDRESS_LIST",
+                        dest="emails", type=str, nargs='*', default='not send',
+                        help="Send email to mailboxes. You can order the addresses in cmd argument, default is in the file 'config.py'.")
     parser.add_argument("--print-invalid",
                         action="store_false", dest="print_invalid", default=False,
                         help="Output api(s) that was invalid."
@@ -462,12 +584,12 @@ def main():
 
         # start = time.perf_counter()
         # for _ in range(20):
-        results = mori(site_datas=apis, console=console, result_printer=result_printer, timeout=args.timeout or 35,
+        results = mori(site_data_l=apis, console=console, result_printer=result_printer, timeout=args.timeout or 35,
                        use_proxy=args.use_proxy)
         # use_time = time.perf_counter() - start
         # print('total_use_time:{}'.format(use_time))
 
-        if args.xls or args.email:
+        if args.xls or isinstance(args.emails, list):
             for i, result in enumerate(results):
                 results[i]['check_results'] = '\n'.join(
                     [f'{key} : {value}' for key, value in result['check_results'].items()])
@@ -482,19 +604,25 @@ def main():
 
                 console.print('[green]mission completed')
 
-            if args.email:
+            if isinstance(args.emails, list):
                 try:
                     import config
                 except Exception as _e:
                     console.print(
                         'can`t get config.py file, please read README.md, search keyword [red]config.py', _e)
                     return
+
                 console.print('[cyan]now sending email...')
+
+                if args.emails:
+                    receivers = args.emails
+                else:
+                    receivers = config.RECEIVERS
 
                 fs = repo.processor(is_stream=True)
                 html = repo.generate_table()
                 try:
-                    send_mail(config.RECEIVERS, fs, html, config.MAIL_SUBJECT, config.MAIL_HOST,
+                    send_mail(receivers, fs, html, config.MAIL_SUBJECT, config.MAIL_HOST,
                               config.MAIL_USER, config.MAIL_PASS, getattr(config, 'MAIL_PORT', 0))
 
                     console.print('[green]mission completed')
