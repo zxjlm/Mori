@@ -1,3 +1,11 @@
+"""
+@project : Mori
+@author  : harumonia
+@mail   : zxjlm233@gmail.com
+@ide    : PyCharm
+@time   : 2020-11-17 19:23:27
+@description: None
+"""
 import requests
 import logging
 

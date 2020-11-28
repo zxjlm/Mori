@@ -1,7 +1,7 @@
 """
 @project : Mori
-@author  : zhang_xinjian
-@mail   : zxjlm233@163.com
+@author  : harumonia
+@mail   : zxjlm233@gmail.com
 @ide    : PyCharm
 @time   : 2020-11-17 19:23:27
 @description: None
