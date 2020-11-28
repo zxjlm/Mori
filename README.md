@@ -48,10 +48,11 @@ $ python mori.py --help
 
 ```shell
 usage: mori.py [-h] [--version] [--verbose] [--xls] [--show-all-site]
-               [--json JSON_FILE] [--email] [--print-invaild]
-               [--timeout TIMEOUT]
+               [--json JSON_FILES [JSON_FILES ...]]
+               [--email [EMAIL_ADDRESS_LIST [EMAIL_ADDRESS_LIST ...]]]
+               [--print-invalid] [--no-proxy] [--timeout TIMEOUT]
 
-Mori Kokoro (Version v0.4)
+Mori Kokoro (Version v0.7)
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -59,15 +60,18 @@ optional arguments:
   --verbose, -v, -d, --debug
                         Display extra debugging information and metrics.
   --xls                 Create .xls File.(Microsoft Excel file format)
-  --show-all-site       Show all infomations of the apis in files.
-  --json JSON_FILE, -j JSON_FILE
-                        Load data from a local JSON file.
-  --email, -e           Send email to mailboxes in the file 'config.py'.
-  --print-invaild       Output api(s) that was invalid.
+  --show-all-site       Show all information of the apis in files.
+  --json JSON_FILES [JSON_FILES ...], -j JSON_FILES [JSON_FILES ...]
+                        Load data from a local JSON file.Accept plural files.
+  --email [EMAIL_ADDRESS_LIST [EMAIL_ADDRESS_LIST ...]], -e [EMAIL_ADDRESS_LIST [EMAIL_ADDRESS_LIST ...]]
+                        Send email to mailboxes. You can order the addresses
+                        in cmd argument, default is in the file 'config.py'.
+  --print-invalid       Output api(s) that was invalid.
+  --no-proxy            Use proxy.Proxy should define in config.py
   --timeout TIMEOUT     Time (in seconds) to wait for response to requests.
-                        Default timeout is infinity. A longer timeout will be
-                        more likely to get results from slow sites. On the
-                        other hand, this may cause a long delay to gather all
+                        Default timeout is 35s. A longer timeout will be more
+                        likely to get results from slow sites. On the other
+                        hand, this may cause a long delay to gather all
                         results.
 ```
 
