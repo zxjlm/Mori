@@ -139,6 +139,7 @@ self*
 .idea/
 *_test.py
 court_*
+xinyong_*
 workspace.code*
 .vscode
 *_bk.*
