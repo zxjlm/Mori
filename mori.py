@@ -73,7 +73,8 @@ def regex_checker_recur(regex_s: list, resp_json: Union[list, dict]):
     if len(regex_s) == 1:
         return resp_json[regex_s[0]]
     elif is_index:
-        return regex_checker_recur(regex_s[1:], resp_json[int(is_index.group(1))])
+        return regex_checker_recur(regex_s[1:],
+                                   resp_json[int(is_index.group(1))])
     else:
         return regex_checker_recur(regex_s[1:], resp_json[regex_s[0]])
 
@@ -113,7 +114,8 @@ def data_render(apis: list) -> None:
             coloring(apis[idx]['data'])
 
 
-def get_response(session: requests.Session, site_data: dict, headers: dict, timeout: int,
+def get_response(session: requests.Session, site_data: dict, headers: dict,
+                 timeout: int,
                  proxies: Union[dict, None]) -> tuple:
     """
     request url and process response data,including decrypt(optional),check regex and so on.
@@ -139,22 +141,31 @@ def get_response(session: requests.Session, site_data: dict, headers: dict, time
 
     try:
         if site_data.get('data'):
+            if 'Cookie' in headers.keys():
+                cookies = headers.pop('Cookie')
+                for k, v in cookies.items():
+                    session.cookies.set(k, v)
             if re.search(r'application.json', headers.get('Content-Type', '')):
                 response = session.post(
-                    site_data['url'], json=site_data['data'], headers=headers, timeout=timeout, proxies=proxies,
+                    site_data['url'], json=site_data['data'], headers=headers,
+                    timeout=timeout, proxies=proxies,
                     allow_redirects=True)
             else:
                 response = session.post(
-                    site_data['url'], data=site_data['data'], headers=headers, timeout=timeout, proxies=proxies,
+                    site_data['url'], data=site_data['data'], headers=headers,
+                    timeout=timeout, proxies=proxies,
                     allow_redirects=True)
         else:
             response = session.get(
-                site_data['url'], headers=headers, timeout=timeout, proxies=proxies)
+                site_data['url'], headers=headers, timeout=timeout,
+                proxies=proxies)
 
         if response and response.text:
             resp_text = response.text
         else:
-            return response, 'request failed or get empty response', exception_text, check_results, 'Damage', traceback, resp_text
+            return response, 'request failed or get empty response', \
+                   exception_text, check_results, 'Damage', traceback, \
+                   resp_text
 
         resp_json = {}
 
@@ -172,9 +183,11 @@ def get_response(session: requests.Session, site_data: dict, headers: dict, time
 
         if resp_text:
             try:
-                # 有些键可能值是null,这种实际上是可以通过判断逻辑的,所以使用占位符(placeholder)来解除null
+                # 有些键可能值是null,这种实际上是可以通过判断逻辑的,
+                # 所以使用占位符(placeholder)来解除null
                 # 不排除这种提取方法会引发新一轮的错误，再找到更好的提取方法之前，暂且先这样
-                resp_text = re.sub(r'[\s\n]', '', resp_text).replace('null', '"placeholder"')
+                resp_text = re.sub(r'[\s\n]', '', resp_text). \
+                    replace('null', '"placeholder"')
                 resp_json = json.loads(
                     re.search(r'(")?({.*})(?(1)")', resp_text).group(0))
                 if isinstance(resp_json, str):
@@ -218,16 +231,21 @@ def get_response(session: requests.Session, site_data: dict, headers: dict, time
     return response, error_context, exception_text, check_results, check_result, traceback, resp_text
 
 
-def processor(site_data: dict, timeout: int, use_proxy: bool, result_printer: ResultPrinter, task_id: TaskID,
+def processor(site_data: dict, timeout: int, use_proxy: bool,
+              result_printer: ResultPrinter, task_id: TaskID,
               progress: Progress) -> dict:
     """
     the main processor for mori.
     Args:
+        result_printer:
         site_data: a dictionary in site_data_list which read from json file
         timeout: Time in seconds to wait before timing out request
-        use_proxy: not use proxy while this value is False. Of course, proxy field in the config file should have a value.
-        result_printer: when processor finish , result_printer will be invoked to output result.
-        task_id: it is id of main_progress, when processor finish, main_progress while step 1.
+        use_proxy: not use proxy while this value is False. Of course, proxy
+            field in the config file should have a value.
+            result_printer: when processor finish , result_printer will be
+            invoked to output result.
+        task_id: it is id of main_progress, when processor finish,
+            main_progress while step 1.
         progress: main progress.
 
     Returns:
@@ -235,7 +253,9 @@ def processor(site_data: dict, timeout: int, use_proxy: bool, result_printer: Re
         'name': api name in configuration,
         'url': api url in configuration,
         'base_url': api base_url in configuration,
-        'resp_text': raw response.text from url, if length of resp_text > 500, it wont`t display on console, and you can add --xls to see detail in *.xls file.
+        'resp_text': raw response.text from url, if length of resp_text > 500,
+            it wont`t display on console, and you can add --xls to see detail
+            in *.xls file.
         'status_code': response status_code,
         'time(s)': time in seconds spend on request,
         'error_text': error_text,
@@ -249,27 +269,32 @@ def processor(site_data: dict, timeout: int, use_proxy: bool, result_printer: Re
     session = requests.Session()
     max_retries = 5
     if progress:
-        monitor_id = progress.add_task(f'{site_data["name"]} (retry)', visible=False, total=max_retries)
+        monitor_id = progress.add_task(f'{site_data["name"]} (retry)',
+                                       visible=False, total=max_retries)
     # progress.update(monitor_id, advance=-max_retries)
     for retries in range(max_retries):
 
         traceback, r, resp_text = None, None, ''
-        error_text, exception_text, check_result, check_results = '', '', 'Unknown', {}
+        error_text, exception_text, check_result, check_results = '', '', \
+                                                                  'Unknown', {}
 
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:55.0) Gecko/20100101 Firefox/55.0',
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; '
+                          'rv:55.0) Gecko/20100101 Firefox/55.0',
         }
 
         if site_data.get('headers'):
             if isinstance(site_data.get('headers'), dict):
                 headers.update(site_data.get('headers'))
 
-        Proxy.set_proxy_url(site_data.get('proxy'), site_data.get('strict_proxy'), use_proxy, headers)
+        Proxy.set_proxy_url(site_data.get('proxy'),
+                            site_data.get('strict_proxy'), use_proxy, headers)
 
         if site_data.get('antispider') and site_data.get('data'):
             try:
                 import importlib
-                package = importlib.import_module('antispider.' + site_data['antispider'])
+                package = importlib.import_module(
+                    'antispider.' + site_data['antispider'])
                 Antispider = getattr(package, 'Antispider')
                 site_data['data'], headers = Antispider(
                     site_data['data'], headers).processor()
@@ -294,7 +319,8 @@ def processor(site_data: dict, timeout: int, use_proxy: bool, result_printer: Re
                 exception_text = site_data['exception_text']
                 traceback = site_data['traceback']
             else:
-                r, error_text, exception_text, check_results, check_result, traceback, resp_text = get_response(
+                r, error_text, exception_text, check_results, check_result, \
+                traceback, resp_text = get_response(
                     session,
                     site_data,
                     headers,
@@ -302,7 +328,8 @@ def processor(site_data: dict, timeout: int, use_proxy: bool, result_printer: Re
                     proxies)
                 if error_text and retries + 1 < max_retries:
                     if progress:
-                        progress.update(monitor_id, advance=1, visible=True, refresh=True)
+                        progress.update(monitor_id, advance=1, visible=True,
+                                        refresh=True)
                     continue
 
             result = {
@@ -310,7 +337,8 @@ def processor(site_data: dict, timeout: int, use_proxy: bool, result_printer: Re
                 'url': site_data['url'],
                 'base_url': site_data.get('base_url', ''),
                 'resp_text': resp_text if len(
-                    resp_text) < 500 else 'too long, and you can add --xls to see detail in *.xls file',
+                    resp_text) < 500 else 'too long, and you can add --xls '
+                                          'to see detail in *.xls file',
                 'status_code': getattr(r, 'status_code', 'failed'),
                 'time(s)': float(r.elapsed.total_seconds()) if r else -1.,
                 'error_text': error_text,
@@ -330,7 +358,8 @@ def processor(site_data: dict, timeout: int, use_proxy: bool, result_printer: Re
                 'url': site_data['url'],
                 'base_url': site_data.get('base_url', ''),
                 'resp_text': resp_text if len(
-                    resp_text) < 500 else 'too long, and you can add --xls to see detail in *.xls file',
+                    resp_text) < 500 else 'too long, and you can add --xls '
+                                          'to see detail in *.xls file',
                 'status_code': getattr(r, 'status_code', 'failed'),
                 'time(s)': float(r.elapsed.total_seconds()) if r else -1.,
                 'error_text': error or 'site handler error',
@@ -384,7 +413,8 @@ def diy_rich_progress(func):
 
 
 @diy_rich_progress
-def mori(progress: Progress, site_data_l: list, result_printer: ResultPrinter, timeout: int, use_proxy: bool) -> list:
+def mori(progress: Progress, site_data_l: list, result_printer: ResultPrinter,
+         timeout: int, use_proxy: bool) -> list:
     """
     Run mori.
     Args:
@@ -400,10 +430,12 @@ def mori(progress: Progress, site_data_l: list, result_printer: ResultPrinter, t
 
     """
     tasks = []
-    with ThreadPoolExecutor(max_workers=len(site_data_l) if len(site_data_l) <= 20 else 20) as pool:
+    with ThreadPoolExecutor(max_workers=len(site_data_l) if len(
+            site_data_l) <= 20 else 20) as pool:
         task_id = progress.add_task('Processing ...', total=len(site_data_l))
         for site_data in site_data_l:
-            task = pool.submit(processor, site_data, timeout, use_proxy, result_printer, task_id, progress)
+            task = pool.submit(processor, site_data, timeout, use_proxy,
+                               result_printer, task_id, progress)
             tasks.append(task)
     # wait(tasks, return_when=ALL_COMPLETED)
 
@@ -436,7 +468,8 @@ def timeout_check(value):
     return timeout
 
 
-def send_mail(receivers: list, file_content: BytesIO, html: str, subject: str, mail_host: str, mail_user: str,
+def send_mail(receivers: list, file_content: BytesIO, html: str, subject: str,
+              mail_host: str, mail_user: str,
               mail_pass: str, mail_port: int = 0):
     """
     Send mail.
@@ -533,7 +566,8 @@ def main():
                         dest="emails", type=str, nargs='*', default='not send',
                         help="Send email to mailboxes. You can order the addresses in cmd argument, default is in the file 'config.py'.")
     parser.add_argument("--print-invalid",
-                        action="store_false", dest="print_invalid", default=False,
+                        action="store_false", dest="print_invalid",
+                        default=False,
                         help="Output api(s) that was invalid."
                         )
     parser.add_argument("--no-proxy", default=True,
@@ -566,7 +600,9 @@ def main():
     if args.show_site_list:
 
         keys_to_show = ['name', 'url', 'data']
-        apis_to_show = list(map(lambda api: {key: value for key, value in api.items() if key in keys_to_show}, apis))
+        apis_to_show = list(map(
+            lambda api: {key: value for key, value in api.items() if
+                         key in keys_to_show}, apis))
         console.print(apis_to_show)
 
     else:
@@ -584,7 +620,9 @@ def main():
 
         # start = time.perf_counter()
         # for _ in range(20):
-        results = mori(site_data_l=apis, console=console, result_printer=result_printer, timeout=args.timeout or 35,
+        results = mori(site_data_l=apis, console=console,
+                       result_printer=result_printer,
+                       timeout=args.timeout or 35,
                        use_proxy=args.use_proxy)
         # use_time = time.perf_counter() - start
         # print('total_use_time:{}'.format(use_time))
@@ -592,10 +630,13 @@ def main():
         if args.xls or isinstance(args.emails, list):
             for i, result in enumerate(results):
                 results[i]['check_results'] = '\n'.join(
-                    [f'{key} : {value}' for key, value in result['check_results'].items()])
+                    [f'{key} : {value}' for key, value in
+                     result['check_results'].items()])
 
-            repo = Reporter(['name', 'url', 'base_url', 'status_code', 'time(s)',
-                             'check_result', 'check_results', 'error_text', 'remark', 'resp_text'], results)
+            repo = Reporter(
+                ['name', 'url', 'base_url', 'status_code', 'time(s)',
+                 'check_result', 'check_results', 'error_text', 'remark',
+                 'resp_text'], results)
 
             if args.xls:
                 console.print('[cyan]now generating report...')
@@ -609,7 +650,8 @@ def main():
                     import config
                 except Exception as _e:
                     console.print(
-                        'can`t get config.py file, please read README.md, search keyword [red]config.py', _e)
+                        'can`t get config.py file, please read README.md, search keyword [red]config.py',
+                        _e)
                     return
 
                 console.print('[cyan]now sending email...')
@@ -622,8 +664,10 @@ def main():
                 fs = repo.processor(is_stream=True)
                 html = repo.generate_table()
                 try:
-                    send_mail(receivers, fs, html, config.MAIL_SUBJECT, config.MAIL_HOST,
-                              config.MAIL_USER, config.MAIL_PASS, getattr(config, 'MAIL_PORT', 0))
+                    send_mail(receivers, fs, html, config.MAIL_SUBJECT,
+                              config.MAIL_HOST,
+                              config.MAIL_USER, config.MAIL_PASS,
+                              getattr(config, 'MAIL_PORT', 0))
 
                     console.print('[green]mission completed')
                 except Exception as _e:
