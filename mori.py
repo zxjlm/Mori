@@ -91,7 +91,7 @@ def data_render(apis: list) -> None:
 
     """
 
-    def coloring(api_sub):
+    def rendering_data(api_sub):
         """
         render api recursively
         Args:
@@ -100,18 +100,36 @@ def data_render(apis: list) -> None:
         Returns:
 
         """
-        for key, value in api_sub.items():
-            if isinstance(value, list):
-                for val in value:
-                    coloring(val)
-            if isinstance(value, dict):
-                coloring(value)
-            if value == "{{time}}":
-                api_sub[key] = str(int(time.time() * 1000))
+        if isinstance(api_sub, dict):
+            for key, value in api_sub.items():
+                if isinstance(value, list):
+                    for val in value:
+                        rendering_data(val)
+                elif isinstance(value, dict):
+                    rendering_data(value)
+                else:
+                    if value == "{{time}}":
+                        api_sub[key] = str(int(time.time() * 1000))
+        elif isinstance(api_sub, list):
+            for key, val in enumerate(api_sub):
+                if isinstance(val, str):
+                    if val == "{{time}}":
+                        api_sub[key] = str(int(time.time() * 1000))
+                else:
+                    rendering_data(val)
+
+        # for key, value in api_sub.items():
+        #     if isinstance(value, list):
+        #         for val in value:
+        #             rendering_data(val)
+        #     if isinstance(value, dict):
+        #         rendering_data(value)
+        #     if value == "{{time}}":
+        #         api_sub[key] = str(int(time.time() * 1000))
 
     for idx, api in enumerate(apis):
         if "data" in api.keys():
-            coloring(apis[idx]['data'])
+            rendering_data(apis[idx]['data'])
 
 
 def get_response(session: requests.Session, site_data: dict, headers: dict,
@@ -149,16 +167,16 @@ def get_response(session: requests.Session, site_data: dict, headers: dict,
                 response = session.post(
                     site_data['url'], json=site_data['data'], headers=headers,
                     timeout=timeout, proxies=proxies,
-                    allow_redirects=True)
+                    allow_redirects=True, verify=False)
             else:
                 response = session.post(
                     site_data['url'], data=site_data['data'], headers=headers,
                     timeout=timeout, proxies=proxies,
-                    allow_redirects=True)
+                    allow_redirects=True, verify=False)
         else:
             response = session.get(
                 site_data['url'], headers=headers, timeout=timeout,
-                proxies=proxies)
+                proxies=proxies, verify=False)
 
         if response and response.text:
             resp_text = response.text
@@ -187,9 +205,14 @@ def get_response(session: requests.Session, site_data: dict, headers: dict,
                 # 所以使用占位符(placeholder)来解除null
                 # 不排除这种提取方法会引发新一轮的错误，再找到更好的提取方法之前，暂且先这样
                 resp_text = re.sub(r'[\s\n]', '', resp_text). \
-                    replace('null', '"placeholder"')
-                resp_json = json.loads(
-                    re.search(r'(")?({.*})(?(1)")', resp_text).group(0))
+                    replace('null', '9527')
+                if site_data['regex'][0].startswith('$'):
+                    # 直接返回了一个列表的json格式
+                    resp_json = json.loads(
+                        re.search(r'(")?(\[.*])(?(1)")', resp_text).group(0))
+                else:
+                    resp_json = json.loads(
+                        re.search(r'(")?({.*})(?(1)")', resp_text).group(0))
                 if isinstance(resp_json, str):
                     # 针对 "/"../"" 类做出特殊优化
                     resp_json = json.loads(resp_json)
@@ -341,7 +364,7 @@ def processor(site_data: dict, timeout: int, use_proxy: bool,
                                           'to see detail in *.xls file',
                 'status_code': getattr(r, 'status_code', 'failed'),
                 'time(s)': float(r.elapsed.total_seconds()) if r else -1.,
-                'error_text': error_text,
+                'error_text': str(error_text),
                 'exception_text': exception_text,
                 'check_result': check_result,
                 'traceback': traceback,
@@ -362,7 +385,7 @@ def processor(site_data: dict, timeout: int, use_proxy: bool,
                                           'to see detail in *.xls file',
                 'status_code': getattr(r, 'status_code', 'failed'),
                 'time(s)': float(r.elapsed.total_seconds()) if r else -1.,
-                'error_text': error or 'site handler error',
+                'error_text': str(error) or 'site handler error',
                 'check_result': check_result,
                 'traceback': Traceback(),
                 'check_results': check_results,
