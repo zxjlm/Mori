@@ -295,49 +295,50 @@ def processor(site_data: dict, timeout: int, use_proxy: bool,
         monitor_id = progress.add_task(f'{site_data["name"]} (retry)',
                                        visible=False, total=max_retries)
     # progress.update(monitor_id, advance=-max_retries)
-    for retries in range(max_retries):
+    check_result, check_results = 'Damage', []
+    r, resp_text = None, ''
+    try:
+        for retries in range(max_retries):
+            check_result = 'Damage'
+            traceback, r, resp_text = None, None, ''
+            error_text, exception_text, check_result, check_results = '', '', \
+                                                                      'Unknown', {}
 
-        traceback, r, resp_text = None, None, ''
-        error_text, exception_text, check_result, check_results = '', '', \
-                                                                  'Unknown', {}
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; '
+                              'rv:55.0) Gecko/20100101 Firefox/55.0',
+            }
 
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; '
-                          'rv:55.0) Gecko/20100101 Firefox/55.0',
-        }
+            if site_data.get('headers'):
+                if isinstance(site_data.get('headers'), dict):
+                    headers.update(site_data.get('headers'))
 
-        if site_data.get('headers'):
-            if isinstance(site_data.get('headers'), dict):
-                headers.update(site_data.get('headers'))
+            Proxy.set_proxy_url(site_data.get('proxy'),
+                                site_data.get('strict_proxy'), use_proxy, headers)
 
-        Proxy.set_proxy_url(site_data.get('proxy'),
-                            site_data.get('strict_proxy'), use_proxy, headers)
+            if site_data.get('antispider') and site_data.get('data'):
+                try:
+                    import importlib
+                    package = importlib.import_module(
+                        'antispider.' + site_data['antispider'])
+                    Antispider = getattr(package, 'Antispider')
+                    site_data['data'], headers = Antispider(
+                        site_data['data'], headers).processor()
+                except Exception as _e:
+                    site_data['single'] = True
+                    site_data['exception_text'] = _e
+                    site_data['traceback'] = Traceback()
+                    raise Exception('antispider failed')
 
-        if site_data.get('antispider') and site_data.get('data'):
             try:
-                import importlib
-                package = importlib.import_module(
-                    'antispider.' + site_data['antispider'])
-                Antispider = getattr(package, 'Antispider')
-                site_data['data'], headers = Antispider(
-                    site_data['data'], headers).processor()
+                proxies = Proxy.get_proxy()
             except Exception as _e:
                 site_data['single'] = True
                 site_data['exception_text'] = _e
                 site_data['traceback'] = Traceback()
-                raise Exception('antispider failed')
+                raise Exception('all of six proxies can`t be used')
 
-        try:
-            proxies = Proxy.get_proxy()
-        except Exception as _e:
-            site_data['single'] = True
-            site_data['exception_text'] = _e
-            site_data['traceback'] = Traceback()
-            raise Exception('all of six proxies can`t be used')
-
-        try:
             if site_data.get('single'):
-                check_result = 'Damage'
                 error_text = site_data['error_text']
                 exception_text = site_data['exception_text']
                 traceback = site_data['traceback']
@@ -375,23 +376,23 @@ def processor(site_data: dict, timeout: int, use_proxy: bool,
             rel_result = dict(result.copy())
             rel_result['resp_text'] = resp_text
             break
-        except Exception as error:
-            result = {
-                'name': site_data['name'],
-                'url': site_data['url'],
-                'base_url': site_data.get('base_url', ''),
-                'resp_text': resp_text if len(
-                    resp_text) < 500 else 'too long, and you can add --xls '
-                                          'to see detail in *.xls file',
-                'status_code': getattr(r, 'status_code', 'failed'),
-                'time(s)': float(r.elapsed.total_seconds()) if r else -1.,
-                'error_text': str(error) or 'site handler error',
-                'check_result': check_result,
-                'traceback': Traceback(),
-                'check_results': check_results,
-                'remark': site_data.get('remark', '')
-            }
-            rel_result = dict(result.copy())
+    except Exception as error:
+        result = {
+            'name': site_data['name'],
+            'url': site_data['url'],
+            'base_url': site_data.get('base_url', ''),
+            'resp_text': resp_text if len(
+                resp_text) < 500 else 'too long, and you can add --xls '
+                                      'to see detail in *.xls file',
+            'status_code': getattr(r, 'status_code', 'failed') if r else 'none',
+            'time(s)': float(r.elapsed.total_seconds()) if r else -1.,
+            'error_text': str(error) or 'site handler error',
+            'check_result': check_result,
+            'traceback': Traceback(),
+            'check_results': check_results,
+            'remark': site_data.get('remark', '')
+        }
+        rel_result = dict(result.copy())
 
     if result_printer:
         progress.update(task_id, advance=1, refresh=True)
