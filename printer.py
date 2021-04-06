@@ -45,28 +45,37 @@ class SimpleResult:
     """
     diy output of each dict.
     """
+
     name: str
     url: str
     result: str
     error_text: str
     time: float
 
-    def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
+    def __rich_console__(
+        self, console: Console, options: ConsoleOptions
+    ) -> RenderResult:
         if not isinstance(self.time, float):
             self.time = -0.1
         yield Segment(self.name, Style(color="magenta"))
-        yield Segment(':    ')
+        yield Segment(":    ")
         yield Segment(self.url, Style(color="green"))
         if len(self.url) > 140:
-            yield Segment('\n' + ' ' * str_count(self.name))
+            yield Segment("\n" + " " * str_count(self.name))
         else:
-            yield Segment(' ,   ')
+            yield Segment(" ,   ")
         yield Segment(self.result, Style(color="cyan"))
-        yield Segment(' ,   ')
-        yield Segment(str(round(self.time, 4)) + ' s', Style(color="blue" if self.time < 5 else 'red'))
-        yield Segment('\n')
-        if self.error_text and self.error_text != 'status_code is 200':
-            yield Segment(' ' * str_count(self.name) + f'Error: {self.error_text}\n', Style(color="red"))
+        yield Segment(" ,   ")
+        yield Segment(
+            str(round(self.time, 4)) + " s",
+            Style(color="blue" if self.time < 5 else "red"),
+        )
+        yield Segment("\n")
+        if self.error_text and self.error_text != "status_code is 200":
+            yield Segment(
+                " " * str_count(self.name) + f"Error: {self.error_text}\n",
+                Style(color="red"),
+            )
 
 
 class ResultPrinter:
@@ -91,26 +100,31 @@ class ResultPrinter:
 
         def map_simple_results(sub_result):
             """
-            
+
             Args:
-                sub_result: 
+                sub_result:
 
             Returns:
 
             """
-            sr = SimpleResult(sub_result['name'], sub_result['url'],
-                              sub_result['check_result'], sub_result['error_text'], sub_result['time(s)'])
+            sr = SimpleResult(
+                sub_result["name"],
+                sub_result["url"],
+                sub_result["check_result"],
+                sub_result["error_text"],
+                sub_result["time(s)"],
+            )
             return sr
 
-        if self.invalid and result['check_result'] != 'OK':
+        if self.invalid and result["check_result"] != "OK":
             return
 
         if self.verbose:
-            traceback = result.pop('traceback')
+            traceback = result.pop("traceback")
             # result.pop('check_result')
 
-            if result['check_result'] != 'OK':
-                self.console.print(result, style=Style(color='red', underline=True))
+            if result["check_result"] != "OK":
+                self.console.print(result, style=Style(color="red", underline=True))
                 self.console.print(traceback)
             else:
                 self.console.print(result)

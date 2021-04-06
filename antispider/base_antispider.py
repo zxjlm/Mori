@@ -24,16 +24,30 @@ class BaseAntiSpiderSolution(metaclass=ABCMeta):
         """
         ...
 
-    def my_http_get(self, url, timeout=5, verify=True, allow_redirects=False, retry_times=5, success_status=200):
+    def my_http_get(
+        self,
+        url,
+        timeout=5,
+        verify=True,
+        allow_redirects=False,
+        retry_times=5,
+        success_status=200,
+    ):
         """
         自定义get request
         """
-        count, e_ = 0, ''
+        count, e_ = 0, ""
         while count < retry_times:
             try:
                 proxies = Proxy.get_proxy()
-                resp = requests.get(url, headers=self.headers, proxies=proxies, timeout=timeout, verify=verify,
-                                    allow_redirects=allow_redirects)
+                resp = requests.get(
+                    url,
+                    headers=self.headers,
+                    proxies=proxies,
+                    timeout=timeout,
+                    verify=verify,
+                    allow_redirects=allow_redirects,
+                )
                 if resp.status_code == success_status:
                     return resp
                 else:

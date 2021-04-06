@@ -2,7 +2,6 @@ from abc import ABCMeta, abstractmethod
 
 
 class BaseDecrypt(metaclass=ABCMeta):
-
     @abstractmethod
     def decrypt(self, resp: str) -> str:
         """

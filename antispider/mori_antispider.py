@@ -1,5 +1,4 @@
 from antispider.base_antispider import BaseAntiSpiderSolution
-import requests
 
 
 class Antispider(BaseAntiSpiderSolution):
@@ -12,13 +11,13 @@ class Antispider(BaseAntiSpiderSolution):
             中即可
     """
 
-    def processor(self):
-        url = 'http://173.82.155.186/gettoken'
+    def processor(self) -> (dict, dict):
+        url = "http://173.82.155.186/gettoken"
         resp = self.my_http_get(url)
         if resp:
-            self.data['token'] = resp.text.replace('"', '')
+            self.data["token"] = resp.text.replace('"', "")
             # 如果需要存储cookie ↓
             # self.headers['Cookie'] = resp.cookies.get_dict()
         else:
-            raise Exception('return None')
+            raise Exception("return None")
         return self.data, self.headers
