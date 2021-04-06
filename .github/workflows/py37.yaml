@@ -1,0 +1,20 @@
+name: py37
+on: [ push ]
+
+jobs:
+  test37:
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [ 3.7 ]
+        os: [ ubuntu-latest ]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run tests
+        run: pytest
