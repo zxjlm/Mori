@@ -7,14 +7,9 @@
 @description: None
 """
 from concurrent.futures.thread import ThreadPoolExecutor
-from functools import wraps
-from io import BytesIO
-from typing import Union
 
 import requests
 import json
-import re
-import time
 from rich.console import Console
 from rich.progress import Progress, TaskID
 from rich.traceback import Traceback
@@ -24,276 +19,14 @@ from printer import ResultPrinter
 from reporter import Reporter
 from proxy import Proxy
 
-__version__ = "v0.7"
+__version__ = "v1.1"
+
+from utils.data_processor import data_render, regex_checker
+from utils.http_tools import get_response, timeout_check
+from utils.rich_tools import diy_rich_progress
+from utils.send_mail import send_mail
+
 module_name = "Mori Kokoro"
-
-
-def regex_checker(regex: str, resp_json: dict, exception=None) -> str:
-    """
-    ergodic the response tree,and try match the regex
-
-    Args:
-        regex:
-        resp_json:
-        exception:
-
-    Returns:
-        if match successfully,return 'OK'
-        else return 'Damage' or error text
-
-    """
-    try:
-        error = None
-        res = regex_checker_recur(regex.split("->"), resp_json)
-    except TypeError as ty_e:
-        error = f"can`t match , {ty_e}"
-        res = None
-    except Exception as _e:
-        res = None
-        error = _e
-    if exception:
-        return "OK" if res == exception else error
-    else:
-        return "OK" if res else error
-
-
-def regex_checker_recur(regex_s: list, resp_json: Union[list, dict]):
-    """
-    get the leaf value of this regex path
-    Args:
-        regex_s:regex path
-        resp_json:
-
-    Returns:
-        if it can get string type value via regex path
-        ,return this string result, else raise Exception
-
-    """
-    is_index = re.search(r"\$(\d+)\$", regex_s[0])
-    if len(regex_s) == 1:
-        return resp_json[regex_s[0]]
-    elif is_index:
-        return regex_checker_recur(regex_s[1:],
-                                   resp_json[int(is_index.group(1))])
-    else:
-        return regex_checker_recur(regex_s[1:], resp_json[regex_s[0]])
-
-
-def data_render(apis: list) -> None:
-    """
-    Render api data in apis,while find string warp by '{{ }}',
-    it means there is a dynamic data, which need to be replace.
-
-    such as {{time}} means str(int(time.time() * 1000)),
-    edit this function can diy your render way.
-
-    Args:
-        apis:
-
-    Returns:
-
-    """
-
-    def rendering_data(api_sub):
-        """
-        render api recursively
-        Args:
-            api_sub: member of apis
-
-        Returns:
-
-        """
-        if isinstance(api_sub, dict):
-            for key, value in api_sub.items():
-                if isinstance(value, list):
-                    for val in value:
-                        rendering_data(val)
-                elif isinstance(value, dict):
-                    rendering_data(value)
-                else:
-                    if value == "{{time}}":
-                        api_sub[key] = str(int(time.time() * 1000))
-        elif isinstance(api_sub, list):
-            for key, val in enumerate(api_sub):
-                if isinstance(val, str):
-                    if val == "{{time}}":
-                        api_sub[key] = str(int(time.time() * 1000))
-                else:
-                    rendering_data(val)
-
-        # for key, value in api_sub.items():
-        #     if isinstance(value, list):
-        #         for val in value:
-        #             rendering_data(val)
-        #     if isinstance(value, dict):
-        #         rendering_data(value)
-        #     if value == "{{time}}":
-        #         api_sub[key] = str(int(time.time() * 1000))
-
-    for idx, api in enumerate(apis):
-        if "data" in api.keys():
-            rendering_data(apis[idx]["data"])
-
-
-def get_response(
-        session: requests.Session,
-        site_data: dict,
-        headers: dict,
-        timeout: int,
-        proxies: Union[dict, None],
-) -> tuple:
-    """
-    request url and process response data,including decrypt(optional),
-    check regex and so on.
-
-    also, it will handle with possible errors in the process
-    Args:
-        session: a instance of requests.Session()
-        site_data: a dictionary in site_data_list which read from json file
-        headers: header for requests
-        timeout: Time in seconds to wait before timing out request
-        proxies: a {'http':'http://*','https':'https://*'} like dict or None
-
-    Returns:
-
-    """
-    check_result = "Unknown"
-    check_results = {}
-    traceback = None
-    resp_text = ""
-    exception_text = ""
-    error_context = ""
-    response = None
-
-    try:
-        if site_data.get("data"):
-            if "Cookie" in headers.keys():
-                cookies = headers.pop("Cookie")
-                for k, v in cookies.items():
-                    session.cookies.set(k, v)
-            if re.search(r"application.json", headers.get("Content-Type", "")):
-                response = session.post(
-                    site_data["url"],
-                    json=site_data["data"],
-                    headers=headers,
-                    timeout=timeout,
-                    proxies=proxies,
-                    allow_redirects=True,
-                    verify=False,
-                )
-            else:
-                response = session.post(
-                    site_data["url"],
-                    data=site_data["data"],
-                    headers=headers,
-                    timeout=timeout,
-                    proxies=proxies,
-                    allow_redirects=True,
-                    verify=False,
-                )
-        else:
-            response = session.get(
-                site_data["url"],
-                headers=headers,
-                timeout=timeout,
-                proxies=proxies,
-                verify=False,
-            )
-
-        if response and response.text:
-            resp_text = response.text
-        else:
-            return (
-                response,
-                "request failed or get empty response",
-                exception_text,
-                check_results,
-                "Damage",
-                traceback,
-                resp_text,
-            )
-
-        resp_json = {}
-
-        if site_data.get("decrypt") and resp_text:
-            try:
-                import importlib
-
-                package = importlib.import_module(
-                    "decrypt." + site_data["decrypt"])
-                Decrypt = getattr(package, "Decrypt")
-                resp_text = Decrypt().decrypt(resp_text)
-            except Exception as _e:
-                traceback = Traceback()
-                error_context = "json decrypt error"
-                exception_text = _e
-
-        if resp_text:
-            try:
-                # 有些键可能值是null,这种实际上是可以通过判断逻辑的,
-                # 所以使用占位符(placeholder)来解除null
-                # 不排除这种提取方法会引发新一轮的错误，再找到更好的提取方法之前,
-                # 暂且先这样
-                resp_text = re.sub(r"[\s\n]", "", resp_text).replace("null",
-                                                                     "9527")
-                if site_data["regex"][0].startswith("$"):
-                    # 直接返回了一个列表的json格式
-                    resp_json = json.loads(
-                        re.search(r'(")?(\[.*])(?(1)")', resp_text).group(0)
-                    )
-                else:
-                    resp_json = json.loads(
-                        re.search(r'(")?({.*})(?(1)")', resp_text).group(0)
-                    )
-                if isinstance(resp_json, str):
-                    # 针对 "/"../"" 类做出特殊优化
-                    resp_json = json.loads(resp_json)
-            except Exception as _e:
-                traceback = Traceback()
-                error_context = "response data not json format"
-                exception_text = _e
-            try:
-                check_results = {
-                    regex: regex_checker(regex, resp_json,
-                                         site_data.get("exception"))
-                    for regex in site_data["regex"]
-                }
-
-                if list(check_results.values()) != ["OK"] * len(check_results):
-                    error_context = "regex failed"
-                    check_result = "Damage"
-                else:
-                    check_result = "OK"
-
-            except Exception as _e:
-                traceback = Traceback()
-                error_context = "json decrypt error"
-                exception_text = _e
-    except requests.exceptions.HTTPError as errh:
-        error_context = "HTTP Error"
-        exception_text = str(errh)
-    except requests.exceptions.ProxyError as errp:
-        error_context = "Proxy Error"
-        exception_text = str(errp)
-    except requests.exceptions.ConnectionError as errc:
-        error_context = "Error Connecting"
-        exception_text = str(errc)
-    except requests.exceptions.Timeout as errt:
-        error_context = "Timeout Error"
-        exception_text = str(errt)
-    except requests.exceptions.RequestException as err:
-        error_context = "Unknown Error"
-        exception_text = str(err)
-
-    return (
-        response,
-        error_context,
-        exception_text,
-        check_results,
-        check_result,
-        traceback,
-        resp_text,
-    )
 
 
 def processor(
@@ -461,40 +194,6 @@ def processor(
     return rel_result
 
 
-def diy_rich_progress(func):
-    """
-    Decorator of rich`s progress.
-
-    It`s aim to decouple, but the effect is not ideal.
-    Args:
-        func:
-
-    Returns:
-
-    """
-
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        """
-        wrapper
-        Args:
-            *args: like mori
-            **kwargs:
-
-        Returns:
-
-        """
-        console = kwargs.pop("console")
-        if console:
-            with Progress(console=console, auto_refresh=False) as progress:
-                results = func(progress, *args, **kwargs)
-        else:
-            results = func(None, *args, **kwargs)
-        return results
-
-    return wrapper
-
-
 @diy_rich_progress
 def mori(
         progress: Progress,
@@ -538,100 +237,6 @@ def mori(
     results_total = [getattr(foo, "_result") for foo in tasks]
 
     return results_total
-
-
-def timeout_check(value):
-    """
-    Checks timeout for validity.
-    Args:
-        value:
-
-    Returns:
-        Floating point number representing the time (in seconds) that should be
-    used for the timeout.
-
-    NOTE:  Will raise an exception if the timeout in invalid.
-    """
-    from argparse import ArgumentTypeError
-
-    try:
-        timeout = float(value)
-    except Exception as _e:
-        raise ArgumentTypeError(f"Timeout '{value}' must be a number. {_e}")
-    if timeout <= 0:
-        raise ArgumentTypeError(
-            f"Timeout '{value}' must be greater than 0.0s.")
-    return timeout
-
-
-def send_mail(
-        receivers: list,
-        file_content: BytesIO,
-        html: str,
-        subject: str,
-        mail_host: str,
-        mail_user: str,
-        mail_pass: str,
-        mail_port: int = 0,
-):
-    """
-    Send mail.
-    Read necessary configuration from config.py.
-    The mean of each argument can be found in README.md.
-    Args:
-        receivers: a list in which store receivers` email address.
-                    such as [zxjlm233@gamil.com].
-        file_content: a BytesIO type. Because when send email, mori also
-                        send a CSV file of detail result.
-                    The content is not absolutely generated but read from
-                        the workbook of xlwt.
-        html: it`s a html5 table of CSV, for more intuitive display.
-        subject: literal meaning
-        mail_host: literal meaning
-        mail_user: username of mail sender.
-        mail_pass: password of mail senders.
-        mail_port: depend on your service.
-
-    Returns:
-        None
-
-    Notes: It`s a universal function can use in other scene by a little
-            modification.
-    """
-    import smtplib
-    from email.mime.text import MIMEText
-    from email.mime.multipart import MIMEMultipart
-
-    sender = mail_user
-    message = MIMEMultipart()
-    message["From"] = sender
-    message["To"] = ";".join(receivers)
-    message["Subject"] = subject
-
-    if html:
-        message.attach(MIMEText(html, "html", "utf-8"))
-
-    part = MIMEText(file_content.getvalue(), "vnd.ms-excel", "utf-8")
-    part.add_header("Content-Disposition", "attachment",
-                    filename=f"{subject}.xls")
-    message.attach(part)
-
-    for count in range(4):
-        try:
-            if mail_port == 0:
-                smtp = smtplib.SMTP()
-                smtp.connect(mail_host)
-            else:
-                smtp = smtplib.SMTP_SSL(mail_host, mail_port)
-            smtp.ehlo()
-            smtp.login(mail_user, mail_pass)
-            smtp.sendmail(sender, receivers, message.as_string())
-            smtp.close()
-            break
-        except Exception as _e:
-            print(_e)
-            if count == 3:
-                raise Exception("failed to send email")
 
 
 def main():
@@ -748,7 +353,6 @@ def main():
         apis += apis_sub
 
     if args.show_site_list:
-
         keys_to_show = ["name", "url", "data"]
         apis_to_show = list(
             map(
