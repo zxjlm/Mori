@@ -1,0 +1,16 @@
+[run]
+omit =
+    antispider/court*
+    antispider/xinyong*
+    decrypt/xinyong*
+    config.py
+    reporter.py
+    utils\send_mail.py
+    proxy.py
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    def main():
+    except Exception as e:
