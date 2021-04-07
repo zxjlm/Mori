@@ -52,10 +52,10 @@ def test_encryption():
     url = "http://mori.harumonia.moe/base64/"
     response = requests.get(url)
     assert (
-            response.text != '{"class": [{"name": "A", "total": 64, '
-                             '"mid-term-examination": 2, "students": '
-                             '[{"number": "1", "name": "Ren", "sex": "F"}, '
-                             '{"number": "2", "name": "Tio", "sex": "F"}]}]}'
+        response.text != '{"class": [{"name": "A", "total": 64, '
+        '"mid-term-examination": 2, "students": '
+        '[{"number": "1", "name": "Ren", "sex": "F"}, '
+        '{"number": "2", "name": "Tio", "sex": "F"}]}]}'
     )
     dec_res = Decrypt().decrypt(response.text)
     json_res = json.loads(dec_res)
@@ -66,7 +66,7 @@ def test_single_mori(init_result_printer, init_console):
     site_data = {
         "name": "Mori get api without params",
         "url": "http://mori.harumonia.moe/",
-        "regex": ["Hello"]
+        "regex": ["Hello"],
     }
     with Progress(console=init_console, auto_refresh=False) as progress:
         task_id = progress.add_task("Processing ...", total=1)
@@ -78,9 +78,9 @@ def test_single_mori(init_result_printer, init_console):
             task_id,
             progress,
         )
-    assert result['status_code'] == 200
-    assert result['check_result'] == 'OK'
-    assert result['check_results']['Hello'] == 'OK'
+    assert result["status_code"] == 200
+    assert result["check_result"] == "OK"
+    assert result["check_results"]["Hello"] == "OK"
 
 
 def test_multi_mori(init_console):
@@ -88,18 +88,18 @@ def test_multi_mori(init_console):
         {
             "name": "Mori get api without params | error case | key-error",
             "url": "http://mori.harumonia.moe/",
-            "regex": ["hello->error"]
+            "regex": ["hello->error"],
         },
         {
             "name": "Mori get api without params | error case | type-error",
             "url": "http://mori.harumonia.moe/",
-            "regex": ["Hello->error"]
+            "regex": ["Hello->error"],
         },
         {
             "name": "Mori get api encrypt",
             "url": "http://mori.harumonia.moe/base64/",
             "regex": ["class->$0$->students"],
-            "decrypt": "mori_decrypt"
+            "decrypt": "mori_decrypt",
         },
         {
             "name": "Mori post api antispider",
@@ -108,14 +108,14 @@ def test_multi_mori(init_console):
             "antispider": "mori_antispider",
             "headers": {
                 "Content-Type": "application/json",
-                "accept": "application/json"
+                "accept": "application/json",
             },
-            "data": {"token": 0}
-        }
+            "data": {"token": 0},
+        },
     ]
     results = mori(apis, 35, False, False, False)
-    assert results[0]['error_text'] == 'regex failed'
-    assert results[1]['check_result'] == 'Damage'
-    assert results[2]['error_text'] == ''
-    assert results[2]['check_result'] == 'OK'
-    assert results[3]['check_result'] == 'OK'
+    assert results[0]["error_text"] == "regex failed"
+    assert results[1]["check_result"] == "Damage"
+    assert results[2]["error_text"] == ""
+    assert results[2]["check_result"] == "OK"
+    assert results[3]["check_result"] == "OK"

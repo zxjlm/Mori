@@ -37,6 +37,7 @@ def diy_rich_progress(func):
 
         """
         from mori import console
+
         with Progress(console=console, auto_refresh=False) as progress:
             results = func(progress, *args, **kwargs)
 

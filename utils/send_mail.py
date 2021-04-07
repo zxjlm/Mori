@@ -12,14 +12,14 @@ from io import BytesIO
 
 
 def send_mail(
-        receivers: list,
-        file_content: BytesIO,
-        html: str,
-        subject: str,
-        mail_host: str,
-        mail_user: str,
-        mail_pass: str,
-        mail_port: int = 0,
+    receivers: list,
+    file_content: BytesIO,
+    html: str,
+    subject: str,
+    mail_host: str,
+    mail_user: str,
+    mail_pass: str,
+    mail_port: int = 0,
 ):
     """
     Send mail.
@@ -59,8 +59,7 @@ def send_mail(
         message.attach(MIMEText(html, "html", "utf-8"))
 
     part = MIMEText(file_content.getvalue(), "vnd.ms-excel", "utf-8")
-    part.add_header("Content-Disposition", "attachment",
-                    filename=f"{subject}.xls")
+    part.add_header("Content-Disposition", "attachment", filename=f"{subject}.xls")
     message.attach(part)
 
     for count in range(4):

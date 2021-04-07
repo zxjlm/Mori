@@ -21,7 +21,7 @@ from proxy import Proxy
 
 __version__ = "v1.1"
 
-from utils.data_processor import data_render, regex_checker
+from utils.data_processor import data_render
 from utils.http_tools import get_response, timeout_check
 from utils.rich_tools import diy_rich_progress
 from utils.send_mail import send_mail
@@ -31,12 +31,12 @@ console = Console()
 
 
 def processor(
-        site_data: dict,
-        timeout: int,
-        use_proxy: bool,
-        result_printer: ResultPrinter,
-        task_id: TaskID,
-        progress: Progress,
+    site_data: dict,
+    timeout: int,
+    use_proxy: bool,
+    result_printer: ResultPrinter,
+    task_id: TaskID,
+    progress: Progress,
 ) -> dict:
     """
     the main processor for mori.
@@ -88,7 +88,7 @@ def processor(
 
             headers = {
                 "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; "
-                              "rv:55.0) Gecko/20100101 Firefox/55.0",
+                "rv:55.0) Gecko/20100101 Firefox/55.0",
             }
 
             if site_data.get("headers"):
@@ -176,8 +176,7 @@ def processor(
             "resp_text": resp_text
             if len(resp_text) < 500
             else "too long, and you can add --xls " "to see detail in *.xls file",
-            "status_code": getattr(r, "status_code",
-                                   "failed") if r else "none",
+            "status_code": getattr(r, "status_code", "failed") if r else "none",
             "time(s)": float(r.elapsed.total_seconds()) if r else -1.0,
             "error_text": str(error) or "site handler error",
             "check_result": check_result,
@@ -197,12 +196,12 @@ def processor(
 
 @diy_rich_progress
 def mori(
-        progress: Progress,
-        site_data_l: list,
-        timeout: int,
-        use_proxy: bool,
-        verbose: bool,
-        print_invalid: bool
+    progress: Progress,
+    site_data_l: list,
+    timeout: int,
+    use_proxy: bool,
+    verbose: bool,
+    print_invalid: bool,
 ) -> list:
     """
     Run mori.
@@ -223,7 +222,7 @@ def mori(
 
     tasks = []
     with ThreadPoolExecutor(
-            max_workers=len(site_data_l) if len(site_data_l) <= 20 else 20
+        max_workers=len(site_data_l) if len(site_data_l) <= 20 else 20
     ) as pool:
         task_id = progress.add_task("Processing ...", total=len(site_data_l))
         for site_data in site_data_l:
@@ -310,8 +309,8 @@ def main():
         nargs="*",
         default="not send",
         help="Send email to mailboxes. You can order the "
-             "addresses in cmd argument, default is "
-             "in the file 'config.py'.",
+        "addresses in cmd argument, default is "
+        "in the file 'config.py'.",
     )
     parser.add_argument(
         "--print-invalid",
@@ -335,12 +334,12 @@ def main():
         type=timeout_check,
         default=None,
         help="Time (in seconds) to wait for response to "
-             "requests. "
-             "Default timeout is 35s. "
-             "A longer timeout will be more likely to "
-             "get results from slow sites. "
-             "On the other hand, this may cause a long "
-             "delay to gather all results.",
+        "requests. "
+        "Default timeout is 35s. "
+        "A longer timeout will be more likely to "
+        "get results from slow sites. "
+        "On the other hand, this may cause a long "
+        "delay to gather all results.",
     )
 
     args = parser.parse_args()
@@ -360,8 +359,7 @@ def main():
         apis_to_show = list(
             map(
                 lambda api: {
-                    key: value for key, value in api.items() if
-                    key in keys_to_show
+                    key: value for key, value in api.items() if key in keys_to_show
                 },
                 apis,
             )
@@ -385,7 +383,7 @@ def main():
             timeout=args.timeout or 35,
             use_proxy=args.use_proxy,
             verbose=args.verbose,
-            print_invalid=args.print_invalid
+            print_invalid=args.print_invalid,
         )
         # use_time = time.perf_counter() - start
         # print('total_use_time:{}'.format(use_time))

@@ -114,7 +114,6 @@ def regex_checker_recur(regex_s: list, resp_json: Union[list, dict]):
     if len(regex_s) == 1:
         return resp_json[regex_s[0]]
     elif is_index:
-        return regex_checker_recur(regex_s[1:],
-                                   resp_json[int(is_index.group(1))])
+        return regex_checker_recur(regex_s[1:], resp_json[int(is_index.group(1))])
     else:
         return regex_checker_recur(regex_s[1:], resp_json[regex_s[0]])

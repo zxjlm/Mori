@@ -19,11 +19,11 @@ from utils.data_processor import regex_checker
 
 
 def get_response(
-        session: requests.Session,
-        site_data: dict,
-        headers: dict,
-        timeout: int,
-        proxies: Union[dict, None],
+    session: requests.Session,
+    site_data: dict,
+    headers: dict,
+    timeout: int,
+    proxies: Union[dict, None],
 ) -> tuple:
     """
     request url and process response data,including decrypt(optional),
@@ -102,8 +102,7 @@ def get_response(
             try:
                 import importlib
 
-                package = importlib.import_module(
-                    "decrypt." + site_data["decrypt"])
+                package = importlib.import_module("decrypt." + site_data["decrypt"])
                 Decrypt = getattr(package, "Decrypt")
                 resp_text = Decrypt().decrypt(resp_text)
             except Exception as _e:
@@ -117,8 +116,7 @@ def get_response(
                 # 所以使用占位符(placeholder)来解除null
                 # 不排除这种提取方法会引发新一轮的错误，再找到更好的提取方法之前,
                 # 暂且先这样
-                resp_text = re.sub(r"[\s\n]", "", resp_text).replace("null",
-                                                                     "9527")
+                resp_text = re.sub(r"[\s\n]", "", resp_text).replace("null", "9527")
                 if site_data["regex"][0].startswith("$"):
                     # 直接返回了一个列表的json格式
                     resp_json = json.loads(
@@ -137,8 +135,7 @@ def get_response(
                 exception_text = _e
             try:
                 check_results = {
-                    regex: regex_checker(regex, resp_json,
-                                         site_data.get("exception"))
+                    regex: regex_checker(regex, resp_json, site_data.get("exception"))
                     for regex in site_data["regex"]
                 }
 
@@ -198,6 +195,5 @@ def timeout_check(value):
     except Exception as _e:
         raise ArgumentTypeError(f"Timeout '{value}' must be a number. {_e}")
     if timeout <= 0:
-        raise ArgumentTypeError(
-            f"Timeout '{value}' must be greater than 0.0s.")
+        raise ArgumentTypeError(f"Timeout '{value}' must be greater than 0.0s.")
     return timeout

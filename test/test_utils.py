@@ -17,10 +17,8 @@ def test_render_data():
             "name": "Mori get api without params",
             "url": "http://mori.harumonia.moe/",
             "regex": ["Hello"],
-            "data": {
-                "t": "{{time}}"
-            }
+            "data": {"t": "{{time}}"},
         }
     ]
     data_render(apis)
-    assert apis[0]['data']['t'] != '{{time}}'
+    assert apis[0]["data"]["t"] != "{{time}}"
