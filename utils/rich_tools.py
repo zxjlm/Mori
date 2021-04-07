@@ -36,12 +36,10 @@ def diy_rich_progress(func):
         Returns:
 
         """
-        console = kwargs.pop("console")
-        if console:
-            with Progress(console=console, auto_refresh=False) as progress:
-                results = func(progress, *args, **kwargs)
-        else:
-            results = func(None, *args, **kwargs)
+        from mori import console
+        with Progress(console=console, auto_refresh=False) as progress:
+            results = func(progress, *args, **kwargs)
+
         return results
 
     return wrapper

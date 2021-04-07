@@ -8,6 +8,7 @@
     :copyright: © 2021 harumonia<zxjlm233@gmail.com>
     :license: MIT, see LICENSE for more details.
 """
+import re
 import time
 from typing import Union
 
