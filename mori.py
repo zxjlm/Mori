@@ -27,6 +27,7 @@ from utils.rich_tools import diy_rich_progress
 from utils.send_mail import send_mail
 
 module_name = "Mori Kokoro"
+console = Console()
 
 
 def processor(
@@ -198,16 +199,18 @@ def processor(
 def mori(
         progress: Progress,
         site_data_l: list,
-        result_printer: ResultPrinter,
         timeout: int,
         use_proxy: bool,
+        verbose: bool,
+        print_invalid: bool
 ) -> list:
     """
     Run mori.
     Args:
+        print_invalid:
+        verbose:
         progress: Instance of rich.Progress() defined in decorator.
         site_data_l: Read from json file.
-        result_printer: to print the result.
         timeout: Defined in cmd arguments, default is 35s.
         use_proxy: Defined in cmd arguments ( --no--proxy ).
 
@@ -216,6 +219,8 @@ def mori(
         content of the dictionary can be found in function processor().
 
     """
+    result_printer = ResultPrinter(verbose, print_invalid, console)
+
     tasks = []
     with ThreadPoolExecutor(
             max_workers=len(site_data_l) if len(site_data_l) <= 20 else 20
@@ -340,8 +345,6 @@ def main():
 
     args = parser.parse_args()
 
-    console = Console()
-
     file_path_l = args.json_files or ["./apis.json"]
     apis = []
 
@@ -375,17 +378,14 @@ def main():
             """
         print(r)
 
-        result_printer = ResultPrinter(args.verbose, args.print_invalid,
-                                       console)
-
         # start = time.perf_counter()
         # for _ in range(20):
         results = mori(
             site_data_l=apis,
-            console=console,
-            result_printer=result_printer,
             timeout=args.timeout or 35,
             use_proxy=args.use_proxy,
+            verbose=args.verbose,
+            print_invalid=args.print_invalid
         )
         # use_time = time.perf_counter() - start
         # print('total_use_time:{}'.format(use_time))
