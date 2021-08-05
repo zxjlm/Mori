@@ -25,6 +25,7 @@ from utils.data_processor import data_render
 from utils.http_tools import get_response, timeout_check
 from utils.rich_tools import diy_rich_progress
 from utils.send_mail import send_mail
+from utils.config_hadnler import config_generator
 
 module_name = "Mori Kokoro"
 console = Console()
@@ -267,6 +268,14 @@ def main():
         help="Display version information and dependencies.",
     )
     parser.add_argument(
+        "--generate-config",
+        "-g",
+        default=False,
+        action="store_true",
+        dest="generate_config",
+        help="It will guide to generate a config.py for this project.",
+    )
+    parser.add_argument(
         "--verbose",
         "-v",
         "-d",
@@ -343,6 +352,10 @@ def main():
     )
 
     args = parser.parse_args()
+
+    if args.generate_config:
+        config_generator()
+        return
 
     file_path_l = args.json_files or ["./apis.json"]
     apis = []
