@@ -26,6 +26,7 @@ Mori 是一个用来监控 api 爬虫的数据源的脚本。
 - [x] 添加注释
 - [x] 对 --verbose 输出上色
 - [x] 对代理进行校验 ([strict_proxy参数](#参数说明))
+- [ ] 完成一套用来测试的api(包含反爬虫和加密配置)
 
 ![email.PNG](https://i.loli.net/2020/11/06/1uxYtDOUyAWdkEa.png)
 
