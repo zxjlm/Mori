@@ -15,7 +15,7 @@ class Proxy:
     handle proxy
     """
 
-    proxy_url = ""
+    proxy_url = ''
     proxies = None
     strict_proxy = None
     use_proxy = False

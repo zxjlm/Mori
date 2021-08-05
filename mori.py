@@ -25,7 +25,7 @@ from utils.data_processor import data_render
 from utils.http_tools import get_response, timeout_check
 from utils.rich_tools import diy_rich_progress
 from utils.send_mail import send_mail
-from utils.config_hadnler import config_generator
+from utils.config_hadnler import ConfigHandler
 
 module_name = "Mori Kokoro"
 console = Console()
@@ -354,7 +354,10 @@ def main():
     args = parser.parse_args()
 
     if args.generate_config:
-        config_generator()
+        ConfigHandler().main()
+        return
+
+    if not ConfigHandler.check_config_file():
         return
 
     file_path_l = args.json_files or ["./apis.json"]
