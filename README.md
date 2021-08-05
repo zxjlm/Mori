@@ -33,7 +33,7 @@ Mori 是一个用来监控 api 爬虫的数据源的脚本。
 
 ```shell
 # installation
-$ git@github.com:zxjlm/Mori.git
+$ git clone git@github.com:zxjlm/Mori.git
 $ cd Mori
 $ pip install -r requirements.txt
 
@@ -42,6 +42,9 @@ $ python mori.py
 
 # help
 $ python mori.py --help
+
+# generate config.py
+$ python mori.py -g
 ```
 
 ## Usage
@@ -57,6 +60,8 @@ Mori Kokoro (Version v0.7)
 optional arguments:
   -h, --help            show this help message and exit
   --version             Display version information and dependencies.
+  --generate-config, -g
+                        It will guide to generate a config.py for this project.
   --verbose, -v, -d, --debug
                         Display extra debugging information and metrics.
   --xls                 Create .xls File.(Microsoft Excel file format)
@@ -122,6 +127,8 @@ optional arguments:
 1. 没有特别规定 HTTP method，如果有 data，则默认是 POST 请求
 
 ## 关于 config.py 文件
+
+可以使用 `python mori.py -g` 生成该文件, 也可以进行手动配置.
 
 该文件当且仅当使用 _email_ 参数时生效(也就是使用 **发送邮件** 功能时)
 
